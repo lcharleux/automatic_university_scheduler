@@ -1,0 +1,11 @@
+label, teachers, rooms, students, duration, after, offset
+MATH_CM1, Teacher_A, Room_A, CMA, 1, MATH_Renforcement_2, 5
+MATH_CM2, Teacher_A, Room_A, CMA, 1, MATH_TD1_A; MATH_TD1_B, 5
+MATH_TD1_A, Teacher_A, Room_A; Room_B, TDA, 1, MATH_CM1, 5
+MATH_TD1_B, Teacher_B; Teacher_B, Room_A; Room_B, TDB, 1, MATH_CM1, 5
+MATH_TD2_A, Teacher_A, Room_A; Room_B, TDA, 1, MATH_CM2, 5
+MATH_TD2_B, Teacher_B; Teacher_B, Room_A; Room_B, TDB, 1, MATH_CM2, 5
+MATH_TD3_A, Teacher_B, Room_B, TDB, 1, MATH_TD2_A, 5
+MATH_TD3_B, Teacher_B, Room_B, TDB, 1, MATH_TD2_B, 5
+MATH_Renforcement_1, Teacher_B, Room_B, TDA+B, 1, None, 5
+MATH_Renforcement_2, Teacher_B, Room_B, TDA+B, 1, MATH_Renforcement_1, 0
