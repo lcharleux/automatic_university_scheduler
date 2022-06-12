@@ -13,7 +13,7 @@ def get_unique_rooms(activity_data):
     )
 
 
-def get_unique_students(activity_data):
+def get_unique_students_groups(activity_data):
     return np.sort(np.unique([a["students"] for a in activity_data.values()]))
 
 
@@ -130,12 +130,12 @@ students_groups = {
     "TPC2": ["TPC2"],
     "TDA+B": ["TPA1", "TPA2", "TPB1", "TPB2"],
 }
-unique_students = np.sort(
+unique_students_groups = np.sort(
     np.unique(np.concatenate([v for k, v in students_groups.items()]))
 ).tolist()
 
 unique_rooms = get_unique_rooms(activity_data).tolist()
-# unique_students = get_unique_students(activity_data).tolist()
+# unique_students_groups = get_unique_students_groups(activity_data).tolist()
 unique_teachers = get_unique_teachers(activity_data).tolist() + list(
     teacher_data.keys()
 )
@@ -187,7 +187,7 @@ for room, rdata in room_data.items():
 
 # STUDENT UNAVAILABILITY
 student_unavailable_intervals = OrderedDict(
-    {student: [] for student in unique_students}
+    {student: [] for student in unique_students_groups}
 )
 
 # NIGHT SHIFTS & LUNCH BREAKS AND WEEK-ENDS!
@@ -229,7 +229,7 @@ for week in range(MAX_WEEKS):
         duration = end - start
         label = f"Week_forbidden_slot-{iinter}_on_week={week}"
         interval = model.NewIntervalVar(start, duration, end, label)
-        for student in unique_students:
+        for student in unique_students_groups:
             student_unavailable_intervals[student].append(interval)
 
 """
@@ -242,14 +242,14 @@ for week in range(MAX_WEEKS):
             lunch_interval = model.NewIntervalVar(
                 day_shift + 3, 1, day_shift + 4, f"lunch_{day}"
             )
-            for student in unique_students:
+            for student in unique_students_groups:
                 student_unavailable_intervals[student].append(night_interval)
                 student_unavailable_intervals[student].append(lunch_interval)
         elif day == 5:
             weekend_interval = model.NewIntervalVar(
                 day_shift, 20, day_shift + 20, f"weekend_{day}"
             )
-            for student in unique_students:
+            for student in unique_students_groups:
                 student_unavailable_intervals[student].append(weekend_interval)
 """
 activity_ends = []
@@ -258,7 +258,7 @@ data = OrderedDict()
 previous_end = None
 teacher_intervals = {t: [] for t in unique_teachers}
 room_intervals = {r: [] for r in unique_rooms}
-students_intervals = {s: [] for s in unique_students}
+students_intervals = {s: [] for s in unique_students_groups}
 
 for label, act in activity_data.items():
     start = model.NewIntVar(0, horizon, "start_" + label)
@@ -354,6 +354,7 @@ status = solver.Solve(model, solution_printer)
 # PRINT SOLUTION
 solution = {
     "label": [],
+    "kind": [],
     "start": [],
     "end": [],
     "daystart": [],
@@ -367,8 +368,9 @@ solution = {
     "week": [],
     "weekday": [],
     "weekdayname": [],
-    "kind": [],
 }
+for group in unique_students_groups:
+    solution[group] = []
 
 
 for label, activity in data.items():
@@ -385,12 +387,18 @@ for label, activity in data.items():
             teacher = alt["teacher"]
     students = activity_data[label]["students"]
     solution["label"].append(label)
+    solution["kind"].append(activity_data[label]["kind"])
     solution["start"].append(start)
     solution["end"].append(end)
     solution["daystart"].append(start % TIME_SLOTS_PER_DAY)
     solution["dayend"].append(end % TIME_SLOTS_PER_DAY)
     solution["teacher"].append(teacher)
     solution["students"].append(students)
+    for group in unique_students_groups:
+        if group in students_groups[students]:
+            solution[group].append(1)
+        else:
+            solution[group].append(0)
     solution["room"].append(room)
 
     solution["year"].append(date.year)
@@ -399,13 +407,26 @@ for label, activity in data.items():
     solution["week"].append(isodate.week)
     solution["weekday"].append(weekday)
     solution["weekdayname"].append(DAYS_NAMES[isodate.weekday - 1])
-    solution["kind"].append(activity_data[label]["kind"])
 
 
 solution = pd.DataFrame(solution)
 solution.sort_values("start", inplace=True)
 
 
-xlout = None
+writer = pd.ExcelWriter("schedule.xlsx", engine="xlsxwriter")
+workbook = writer.book
+merge_format = workbook.add_format(
+    {"align": "center", "valign": "vcenter", "border": 2}
+)
+N_unique_groups = len(unique_students_groups)
+slots_df = pd.DataFrame({"Slot": np.arange(10)})
 for week, group in solution.groupby("week"):
-    pass
+    slots_df.to_excel(writer, sheet_name=f"Week_{week}", index=False, startrow=1)
+    worksheet = writer.sheets[f"Week_{week}"]
+    for label, activity in group.iterrows():
+        students = activity.students
+        sub_groups = students_groups[students]
+
+        # worksheet.merge_range(row, 0, endRow, 0, df.loc[row-1,'Name'], merge_format)
+
+writer.save()

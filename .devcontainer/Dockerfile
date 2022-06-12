@@ -66,6 +66,11 @@ RUN source /home/$USERNAME/.bashrc \
       pandas xlrd xlwt pytables \
       pre-commit black
 
+
+RUN conda activate $ENVNAME \
+ && conda install -c conda-forge xlsxwriter \
+ && conda install -c anaconda openpyxl
+
 COPY .pre-commit-config.yaml .
 SHELL ["pre-commit", "install-hooks"]
 SHELL ["/bin/bash", "--login", "-c"]
