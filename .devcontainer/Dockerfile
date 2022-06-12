@@ -16,18 +16,7 @@ ENV USERNAME=${USERNAME}
 ENV USER_GID=${USER_GID}
 ENV USER_UID=${USER_UID}
 
-
-
-
-
-# Create the '$USER' user
-# RUN groupmod --gid ${USER_GID} -n ${USERNAME} root && \
-#         usermod -l ${USERNAME} -u ${USER_UID} -o -m -d /home/${USERNAME} triton-server && \
-#         mkdir -p /home/${USERNAME} && \
-#         sudo chown ${USERNAME}:${USERNAME} /home/${USERNAME} && \
-#         echo ${USERNAME} ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/${USERNAME} && \
-#         chmod 0440 /etc/sudoers.d/${USERNAME} && \
-#         adduser ${USERNAME} video && adduser ${USERNAME} sudo
+# USER CREATION
 
 RUN groupadd --gid $USER_GID $USERNAME \
     && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
@@ -38,13 +27,12 @@ RUN groupadd --gid $USER_GID $USERNAME \
     && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
     && chmod 0440 /etc/sudoers.d/$USERNAME
 
-
-
-# Fundamentals
+# GENERAL PURPOSE INSTALLS
 RUN sudo apt-get update && sudo apt-get install -y \
         bash-completion locales \
         && sudo rm -rf /var/lib/apt/lists/*
 
+# LOCALES GIT BUG PREVENTION
 RUN locale-gen en_US.UTF-8
 RUN sudo localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8
 
@@ -58,36 +46,28 @@ RUN sudo mkdir /opt/conda/pkgs
 RUN sudo touch /opt/conda/pkgs/urls.txt
 
 # Install miniconda
-ENV CONDA_DIR ~/.conda
+#ENV CONDA_DIR ~/.conda
+ENV CONDA_DIR /opt/conda
 # Put conda in path so we can use conda activate
 ENV PATH=$CONDA_DIR/bin:$PATH
 
 RUN conda create --name $ENVNAME
-RUN echo "conda activate $ENVNAME" >> ~/.bashrc
+#RUN echo "conda activate $ENVNAME" >> ~/.bashrc
+RUN echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc && \
+    echo "conda activate $ENVNAME" >> ~/.bashrc
 SHELL ["/bin/bash", "--login", "-c"]
-# Create conda environment named myenv
-# RUN . ~/.bashrc && \
-#         conda init bash && \
-#         conda create -n $ENVNAME
 
-# Set auto activation of env when launching bash
-#RUN echo "conda activate $ENVNAME" > ~/.bashrc
-
-# Add conda env to PATH
 ENV PATH ~/.conda/envs/$ENVNAME/bin:$PATH
 
-# Copy scripts
-# RUN sudo mkdir -p /usr/local/bin/scripts
-# COPY scripts/*entrypoint.sh /usr/local/bin/scripts/
-# RUN sudo chmod +x /usr/local/bin/scripts/*.sh
-# RUN sudo rm -r /workspace
-
-RUN   conda install -y -c conda-forge ortools-python ipython \
+RUN source /home/$USERNAME/.bashrc \
+ && conda create -q --name $ENVNAME \
+ && conda activate $ENVNAME \
+ && conda install -y -c conda-forge ortools-python ipython \
       pandas xlrd xlwt pytables \
       pre-commit black
 
-
-
-# Set default workspace according user input
-# ARG HOME_FOLDER
-# WORKDIR ${HOME_FOLDER}
+COPY .pre-commit-config.yaml .
+SHELL ["pre-commit", "install-hooks"]
+SHELL ["/bin/bash", "--login", "-c"]
+RUN /bin/bash ~/.bashrc
+ENTRYPOINT ["/bin/bash"]
