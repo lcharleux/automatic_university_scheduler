@@ -24,14 +24,14 @@
 				"python.linting.pycodestylePath": "/usr/local/py-utils/bin/pycodestyle",
 				"python.linting.pydocstylePath": "/usr/local/py-utils/bin/pydocstyle",
 				"python.linting.pylintPath": "/usr/local/py-utils/bin/pylint",
-				"terminal.integrated.defaultProfile.linux": "bash",
+				"terminal.integrated.defaultProfile.linux": "bash (container default)",
 				"terminal.integrated.shell.linux": "bash",
-				// "terminal.integrated.profiles.linux": {
-				// 	"bash (container default)": {
-				// 		"path": "/bin/bash",
-				// 		"overrideName": true
-				// 	}
-				// },
+				"terminal.integrated.profiles.linux": {
+					"bash (container default)": {
+						"path": "/bin/bash",
+						"overrideName": true
+					}
+				}
 			},
 			// Add the IDs of extensions you want installed when the container is created.
 			"extensions": [
@@ -40,6 +40,9 @@
 			]
 		}
 	},
+	"postCreateCommand": "ps -p $$ && echo '----------------' && /bin/bash .devcontainer/postCommand.sh"
+
+	//"postAttachCommand": "/bin/bash"
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
 	// Use 'postCreateCommand' to run commands after the container is created.

@@ -11,6 +11,7 @@ ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 ARG ENVNAME="ortools"
 
+
 # Set user parameters as environment variables
 ENV USERNAME=${USERNAME}
 ENV USER_GID=${USER_GID}
@@ -38,6 +39,8 @@ RUN sudo localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.
 
 # Log as $USER and create a .bashrc file for config
 USER ${USERNAME}
+
+
 # Add possibility to write in /opt
 RUN sudo chown -R $USER_UID:$USER_GID /opt/conda/
 
@@ -64,15 +67,11 @@ RUN source /home/$USERNAME/.bashrc \
  && conda activate $ENVNAME \
  && conda install -y -c conda-forge ortools-python ipython \
       pandas xlrd xlwt pytables \
-      pre-commit black
+      pre-commit black xlsxwriter \
+ && conda install -y -c anaconda openpyxl
 
 
-RUN conda activate $ENVNAME \
- && conda install -c conda-forge xlsxwriter \
- && conda install -c anaconda openpyxl
 
-COPY .pre-commit-config.yaml .
-SHELL ["pre-commit", "install-hooks"]
 SHELL ["/bin/bash", "--login", "-c"]
 RUN /bin/bash ~/.bashrc
 ENTRYPOINT ["/bin/bash"]
