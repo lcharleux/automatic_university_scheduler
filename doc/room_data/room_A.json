@@ -1,0 +1,17 @@
+{
+    "Room_A":[
+        {
+            "kind": "isocalendar",
+            "from_year": 2022,
+            "from_week": 36,
+            "from_weekday": 1,
+            "from_dayshift": 0,
+            "to_year": 2022,
+            "to_week": 36,
+            "to_weekday": 2,
+            "to_dayshift": 9,
+            "repeat_pad": 70,
+            "repeat": 20
+        }
+    ]
+}

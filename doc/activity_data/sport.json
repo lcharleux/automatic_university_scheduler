@@ -1,0 +1,176 @@
+{
+    "SPORT_TDA1": {
+        "kind": "TP",
+        "duration":3,
+        "teachers": [
+            "Sport_Teacher_A"
+        ],
+        "rooms": [
+            "Gymasium"
+        ],
+        "students": "TDA",
+        "after": {},
+        "allowed_weekdays": [
+            1,
+            4
+        ]
+    },
+    "SPORT_TDA2": {
+        "kind": "TP",
+        "duration":3,
+        "teachers": [
+            "Sport_Teacher_A"
+        ],
+        "rooms": [
+            "Gymasium"
+        ],
+        "students": "TDA",
+        "after": {
+            "SPORT_TDA1": {
+                "min_offset": -1,
+                "max_offset": -1
+            }
+        },
+        "allowed_weekdays": [
+            1,
+            4
+        ]
+    },
+    "SPORT_TDA3": {
+        "kind": "TP",
+        "duration":3,
+        "teachers": [
+            "Sport_Teacher_A"
+        ],
+        "rooms": [
+            "Gymasium"
+        ],
+        "students": "TDA",
+        "after": {
+            "SPORT_TDA2": {
+                "min_offset": -1,
+                "max_offset": -1
+            }
+        },
+        "allowed_weekdays": [
+            1,
+            4
+        ]
+    },
+    "SPORT_TDB1": {
+        "kind": "TP",
+        "duration":3,
+        "teachers": [
+            "Sport_Teacher_A"
+        ],
+        "rooms": [
+            "Gymasium"
+        ],
+        "students": "TDB",
+        "after": {},
+        "allowed_weekdays": [
+            1,
+            4
+        ]
+    },
+    "SPORT_TDB2": {
+        "kind": "TP",
+        "duration":3,
+        "teachers": [
+            "Sport_Teacher_A"
+        ],
+        "rooms": [
+            "Gymasium"
+        ],
+        "students": "TDB",
+        "after": {
+            "SPORT_TDA1": {
+                "min_offset": -1,
+                "max_offset": -1
+            }
+        },
+        "allowed_weekdays": [
+            1,
+            4
+        ]
+    },
+    "SPORT_TDB3": {
+        "kind": "TP",
+        "duration":3,
+        "teachers": [
+            "Sport_Teacher_A"
+        ],
+        "rooms": [
+            "Gymasium"
+        ],
+        "students": "TDB",
+        "after": {
+            "SPORT_TDA2": {
+                "min_offset": -1,
+                "max_offset": -1
+            }
+        },
+        "allowed_weekdays": [
+            1,
+            4
+        ]
+    },
+    "SPORT_TDC1": {
+        "kind": "TP",
+        "duration":3,
+        "teachers": [
+            "Sport_Teacher_A"
+        ],
+        "rooms": [
+            "Gymasium"
+        ],
+        "students": "TDC",
+        "after": {},
+        "allowed_weekdays": [
+            1,
+            4
+        ]
+    },
+    "SPORT_TDC2": {
+        "kind": "TP",
+        "duration":3,
+        "teachers": [
+            "Sport_Teacher_A"
+        ],
+        "rooms": [
+            "Gymasium"
+        ],
+        "students": "TDC",
+        "after": {
+            "SPORT_TDA1": {
+                "min_offset": -1,
+                "max_offset": -1
+            }
+        },
+        "allowed_weekdays": [
+            1,
+            4
+        ]
+    },
+    "SPORT_TDC3": {
+        "kind": "TP",
+        "duration":3,
+        "teachers": [
+            "Sport_Teacher_A"
+        ],
+        "rooms": [
+            "Gymasium"
+        ],
+        "students": "TDC",
+        "after": {
+            "SPORT_TDA2": {
+                "min_offset": -1,
+                "max_offset": -1
+            }
+        },
+        "allowed_weekdays": [
+            1,
+            4
+        ]
+    }
+}

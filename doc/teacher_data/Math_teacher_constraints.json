@@ -1,0 +1,20 @@
+{
+    "Math_Teacher": {
+        "unavailable": [
+            {
+                "kind": "isocalendar",
+                "from_year": 2022,
+                "from_week": 36,
+                "from_weekday": 1,
+                "from_dayshift": 0,
+                "to_year": 2022,
+                "to_week": 45,
+                "to_weekday": 6,
+                "to_dayshift": 9
+            }
+        ],
+        "first_name": "Math",
+        "name": "Teacher",
+        "phone": "xxxx"
+    }
+}

@@ -5,6 +5,8 @@ from collections import OrderedDict
 import itertools
 import pandas as pd
 import os
+from scipy import ndimage
+import json
 
 
 def get_unique_rooms(activity_data):
@@ -26,9 +28,10 @@ def get_unique_teachers(activity_data):
 class SolutionPrinter(cp_model.CpSolverSolutionCallback):
     """Print intermediate solutions."""
 
-    def __init__(self):
+    def __init__(self, limit=3):
         cp_model.CpSolverSolutionCallback.__init__(self)
         self.__solution_count = 0
+        self.__solution_limit = limit
 
     def on_solution_callback(self):
         """Called at each new solution."""
@@ -37,6 +40,25 @@ class SolutionPrinter(cp_model.CpSolverSolutionCallback):
             % (self.__solution_count, self.WallTime(), self.ObjectiveValue())
         )
         self.__solution_count += 1
+        if self.__solution_count >= self.__solution_limit:
+            print("Stop search after %i solutions" % self.__solution_limit)
+            self.StopSearch()
+
+    def solution_count(self):
+        return self.__solution_count
+
+
+def read_json_data(directory=""):
+    all_data = {}
+    for file in os.listdir(directory):
+        if file.endswith(".json"):
+            data = json.load(open(directory + file))
+            for k, v in data.items():
+                if k not in all_data.keys():
+                    all_data[k] = v
+                else:
+                    print(f"Warning, data {k} defined more than once.")
+    return all_data
 
 
 # SETUP
@@ -67,53 +89,12 @@ horizon = MAX_WEEKS * TIME_SLOTS_PER_WEEK
 START_DAY = datetime.date.fromisocalendar(2022, 36, 1)
 print("Horizon = %i" % horizon)
 
-module_data_dir = "modules_data/"
-activity_data = {}
-files = [f for f in os.listdir(module_data_dir) if f.endswith(".csv")]
-for file in files:
-    raw_data = pd.read_csv(
-        module_data_dir + file, header=0, sep="\s*,\s*", engine="python"
-    )
-    raw_data = raw_data.T.to_dict()
-
-    for k, v in raw_data.items():
-        out = {}
-        label = v["label"].strip()
-        out["teachers"] = v["teachers"].split(";")
-        out["rooms"] = [vv.strip() for vv in v["rooms"].split(";")]
-        out["students"] = v["students"].strip()
-        out["duration"] = int(v["duration"])
-        out["kind"] = v["kind"].strip()
-        after = v["after"].strip()
-        if after == "None":
-            after = None
-        else:
-            after = [vv.strip() for vv in after.split(";")]
-        out["after"] = after
-        out["min_offset"] = int(v["min_offset"])
-        out["max_offset"] = int(v["max_offset"])
-        activity_data[label] = out
-
+activity_data_dir = "activity_data/"
 teacher_data_dir = "teacher_data/"
-teacher_data = []
-files = [f for f in os.listdir(teacher_data_dir) if f.endswith(".csv")]
-for file in files:
-    raw_data = pd.read_csv(
-        teacher_data_dir + file, header=0, sep="\s*,\s*", engine="python"
-    )
-    teacher_data.append(raw_data)
-teacher_data = pd.concat(teacher_data)
-
-
-# ROOM DATA
-room_data = {
-    "Room_A": {
-        "unavailable": [
-            (0, 3),
-            (4, 50),
-        ]
-    }
-}
+room_data_dir = "room_data/"
+teacher_data = read_json_data(teacher_data_dir)
+activity_data = read_json_data(activity_data_dir)
+room_data = read_json_data(room_data_dir)
 
 
 # STUDENTS GROUPS
@@ -141,50 +122,74 @@ unique_teachers = get_unique_teachers(activity_data).tolist() + list(
 )
 model = cp_model.CpModel()
 
-
 # TEACHER UNAVAILABILITY
-teacher_unavailable_intervals = OrderedDict(
-    {teacher: [] for teacher in unique_teachers}
-)
+def create_unavailable_constraints(model, data={}, prefix="Unavailable"):
+    intervals = {}
+    for label, ldata_list in data.items():
+        if "unavailable" in ldata_list.keys():
+            for ldata in ldata_list["unavailable"]:
+                if ldata["kind"] == "isocalendar":
+                    from_day = datetime.date.fromisocalendar(
+                        ldata["from_year"], ldata["from_week"], ldata["from_weekday"]
+                    )
+                    to_day = datetime.date.fromisocalendar(
+                        ldata["to_year"], ldata["to_week"], ldata["to_weekday"]
+                    )
+                    from_day_offset = (from_day - START_DAY).days
+                    to_day_offset = (to_day - START_DAY).days
+                    from_day_offset = max(from_day_offset, 0)
+                    to_day_offset = max(to_day_offset, 0)
+                    # from_day_offset = min(from_day_offset, horizon)
+                    # to_day_offset = min(to_day_offset, horizon)
+                    if from_day_offset < to_day_offset:
+                        from_shift = (
+                            from_day_offset * TIME_SLOTS_PER_DAY
+                            + ldata["from_dayshift"]
+                        )
+                        to_shift = (
+                            to_day_offset * TIME_SLOTS_PER_DAY + ldata["to_dayshift"]
+                        )
+                        duration = to_shift - from_shift
 
-# def isocalendar_to_shift(start_date, year, week, day, shift):
+                if "repeat" not in ldata.keys():
+                    repeat = 1
+                    repeat_pad = 70
+                else:
+                    repeat = ldata["repeat"]
+                    repeat_pad = ldata["repeat_pad"]
+                iteration = 0
+                while iteration < repeat:
+                    interval_label = (
+                        f"Unavailable_{label}_{from_shift}_{to_shift}_{repeat}"
+                    )
+                    interval = model.NewIntervalVar(
+                        from_shift + iteration * repeat_pad,
+                        duration,
+                        to_shift + iteration * repeat_pad,
+                        interval_label,
+                    )
+                    if label not in intervals.keys():
+                        intervals[label] = []
+                    intervals[label].append(interval)
+                    iteration += 1
+    return intervals
 
-"""
-for teacher, tdata in teacher_data.items():
-    if "unavailable" in tdata.keys():
-        for start, end in tdata["unavailable"]:
-            duration = end - start
-            label = f"Unavailable_{teacher}_{start}_{end}"
-            interval = model.NewIntervalVar(start, duration, end, label)
-            teacher_unavailable_intervals[teacher].append(interval)"""
-for _, tdata in teacher_data.T.to_dict().items():
-    from_day = datetime.date.fromisocalendar(
-        tdata["from_year"], tdata["from_week"], tdata["from_weekday"]
-    )
-    to_day = datetime.date.fromisocalendar(
-        tdata["to_year"], tdata["to_week"], tdata["to_weekday"]
-    )
-    from_day_offset = max((from_day - START_DAY).days, 0)
-    to_day_offset = max((to_day - START_DAY).days, 0)
-    if from_day_offset < to_day_offset:
-        from_shift = from_day_offset * TIME_SLOTS_PER_DAY + tdata["from_dayshift"]
-        to_shift = to_day_offset * TIME_SLOTS_PER_DAY + tdata["to_dayshift"]
-        duration = to_shift - from_shift
-        interval = model.NewIntervalVar(
-            from_shift, duration, to_shift, f"Unavailable_{label}_{0}"
-        )
-        teacher_unavailable_intervals["label"].append(interval)
+
+teacher_unavailable_intervals = create_unavailable_constraints(model, data=teacher_data)
+room_unavailable_intervals = create_unavailable_constraints(model, data=room_data)
 # ROOM UNAVAILABILITY
-room_unavailable_intervals = OrderedDict({room: [] for room in unique_rooms})
+"""room_unavailable_intervals = {}
 for room, rdata in room_data.items():
     if "unavailable" in rdata.keys():
         for start, end in rdata["unavailable"]:
             duration = end - start
             label = f"Unavailable_{room}_{start}_{end}"
             interval = model.NewIntervalVar(start, duration, end, label)
+            if room not in room_unavailable_intervals.keys():
+                room_unavailable_intervals[room] = []
             room_unavailable_intervals[room].append(interval)
 
-
+"""
 # STUDENT UNAVAILABILITY
 student_unavailable_intervals = OrderedDict(
     {student: [] for student in unique_students_groups}
@@ -214,7 +219,7 @@ for islot in range(len(flat_week_structure)):
     else:
         if inside:
             end = islot
-            print(f"found shift {start}->{end}, day={start//10}")
+            # print(f"found shift {start}->{end}, day={start//10}")
             week_forbidden_intervals.append((start, end))
             inside = False
             start = 0
@@ -232,26 +237,6 @@ for week in range(MAX_WEEKS):
         for student in unique_students_groups:
             student_unavailable_intervals[student].append(interval)
 
-"""
-for week in range(MAX_WEEKS):
-    for day in range(DAYS_PER_WEEK):
-        if day < 5:
-            night_interval = model.NewIntervalVar(
-                day_shift + 7, 3, day_shift + 10, f"night_{day}"
-            )
-            lunch_interval = model.NewIntervalVar(
-                day_shift + 3, 1, day_shift + 4, f"lunch_{day}"
-            )
-            for student in unique_students_groups:
-                student_unavailable_intervals[student].append(night_interval)
-                student_unavailable_intervals[student].append(lunch_interval)
-        elif day == 5:
-            weekend_interval = model.NewIntervalVar(
-                day_shift, 20, day_shift + 20, f"weekend_{day}"
-            )
-            for student in unique_students_groups:
-                student_unavailable_intervals[student].append(weekend_interval)
-"""
 activity_ends = []
 data = OrderedDict()
 
@@ -311,24 +296,29 @@ for label, act in activity_data.items():
 
 for label, act in activity_data.items():
     start = data[label]["start"]
-    after_list = act["after"]
+
     # CONSTRAINTS
-    if after_list is not None:
-        for after_label in after_list:
+    if "after" in act.keys():
+        after_dic = act["after"]
+        for after_label, after_data in after_dic.items():
             previous_end = data[after_label]["end"]
-            min_offset = act["min_offset"]
-            model.Add(start >= previous_end + min_offset)
-            max_offset = act["max_offset"]
+            min_offset = after_data["min_offset"]
+            if min_offset >= 0:
+                model.Add(start >= previous_end + min_offset)
+            max_offset = after_data["max_offset"]
             if max_offset >= 0:
                 model.Add(start <= previous_end + max_offset)
     if act["kind"] in ["TD", "CM"]:
         start_m10 = model.NewIntVar(0, horizon, "start_mod_10")
         model.AddModuloEquality(start_m10, start, 10)
-        model.Add(start_m10 != 3)
+        model.Add(start_m10 != 2)
 
 for teacher, intervals in teacher_intervals.items():
     if len(intervals) > 1:
-        all_intervals = intervals + teacher_unavailable_intervals[teacher]
+        if teacher in teacher_unavailable_intervals.keys():
+            all_intervals = intervals + teacher_unavailable_intervals[teacher]
+        else:
+            all_intervals = intervals
         model.AddNoOverlap(all_intervals)
 
 for student, intervals in students_intervals.items():
@@ -338,9 +328,11 @@ for student, intervals in students_intervals.items():
 
 for room, intervals in room_intervals.items():
     if len(intervals) > 1:
-        all_intervals = intervals + room_unavailable_intervals[room]
+        if room in room_unavailable_intervals:
+            all_intervals = intervals + room_unavailable_intervals[room]
+        else:
+            all_intervals = intervals
         model.AddNoOverlap(all_intervals)
-
 # Makespan objective
 makespan = model.NewIntVar(0, horizon, "makespan")
 model.AddMaxEquality(makespan, activity_ends)
@@ -348,7 +340,9 @@ model.Minimize(makespan)
 
 # Solve model.
 solver = cp_model.CpSolver()
-solution_printer = SolutionPrinter()
+solver.parameters.max_time_in_seconds = 10.0
+
+solution_printer = SolutionPrinter(limit=5)
 status = solver.Solve(model, solution_printer)
 
 # PRINT SOLUTION
@@ -419,14 +413,69 @@ merge_format = workbook.add_format(
     {"align": "center", "valign": "vcenter", "border": 2}
 )
 N_unique_groups = len(unique_students_groups)
-slots_df = pd.DataFrame({"Slot": np.arange(10)})
+slots_df = pd.DataFrame({("Slot"): np.arange(TIME_SLOTS_PER_DAY)})
+day_df = {}
+for day in DAYS_NAMES:
+    for group in unique_students_groups:
+        day_df[group] = np.zeros(TIME_SLOTS_PER_DAY) * np.nan
+day_df = pd.DataFrame(day_df)
+grid = np.zeros(
+    (TIME_SLOTS_PER_DAY, DAYS_PER_WEEK * len(unique_students_groups)), dtype=np.int32
+)
+row_offset = 2
+col_offset = 1
 for week, group in solution.groupby("week"):
     slots_df.to_excel(writer, sheet_name=f"Week_{week}", index=False, startrow=1)
     worksheet = writer.sheets[f"Week_{week}"]
+    for nday in range(len(DAYS_NAMES)):
+        day_name = DAYS_NAMES[nday]
+        day_df.to_excel(
+            writer,
+            sheet_name=f"Week_{week}",
+            index=False,
+            startrow=1,
+            startcol=col_offset + nday * N_unique_groups,
+        )
+        date = datetime.date.fromisocalendar(
+            group.year.values[0], group.week.values[0], nday + 1
+        )
+        worksheet.merge_range(
+            0,
+            col_offset + nday * N_unique_groups,
+            0,
+            col_offset + (nday + 1) * (N_unique_groups) - 1,
+            f"{day_name} {date}",
+            merge_format,
+        )
+
+    # week_activities = group.label.unique()
     for label, activity in group.iterrows():
+        grid *= 0
         students = activity.students
         sub_groups = students_groups[students]
+        day_offset = N_unique_groups * (activity.weekday - 1) + col_offset
+        for sub_group in sub_groups:
+            group_index = unique_students_groups.index(sub_group)
+            grid[activity.daystart : activity.dayend, group_index] = 1
+            gridl, nlabels = ndimage.label(grid)
+            areas = ndimage.find_objects(gridl)
+            for rslice, cslice in areas:
+                rstart = rslice.start + row_offset
+                cstart = cslice.start + day_offset
+                rstop = rslice.stop + row_offset - 1
+                cstop = cslice.stop + day_offset - 1
+                label = f"{activity.label}\n{activity.room}\n{activity.teacher}"
+                if (rstart != rstop) or (cstart != cstop):
+                    worksheet.merge_range(
+                        rstart,
+                        cstart,
+                        rstop,
+                        cstop,
+                        label,
+                        merge_format,
+                    )
+                else:
+                    worksheet.write(rstart, cstart, label, merge_format)
 
-        # worksheet.merge_range(row, 0, endRow, 0, df.loc[row-1,'Name'], merge_format)
 
 writer.save()
