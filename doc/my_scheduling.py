@@ -1,4 +1,5 @@
 import datetime
+from pickletools import StackObject
 from ortools.sat.python import cp_model
 import numpy as np
 from collections import OrderedDict
@@ -87,6 +88,10 @@ MAX_WEEKS = 20
 TIME_SLOTS_PER_WEEK = TIME_SLOTS_PER_DAY * DAYS_PER_WEEK
 horizon = MAX_WEEKS * TIME_SLOTS_PER_WEEK
 START_DAY = datetime.date.fromisocalendar(2022, 36, 1)
+STOP_DAY = datetime.date.fromisocalendar(2022, 36, 1) + datetime.timedelta(
+    weeks=MAX_WEEKS
+)
+
 print("Horizon = %i" % horizon)
 
 activity_data_dir = "activity_data/"
@@ -123,34 +128,68 @@ unique_teachers = get_unique_teachers(activity_data).tolist() + list(
 model = cp_model.CpModel()
 
 # TEACHER UNAVAILABILITY
-def create_unavailable_constraints(model, data={}, prefix="Unavailable"):
+def isocalendar_to_slot(
+    year=2022,
+    week=1,
+    weekday=1,
+    dayslot=0,
+    start_date=datetime.date.fromisocalendar(2022, 1, 1),
+    slots_per_day=10,
+):
+    date = datetime.date.fromisocalendar(year, week, weekday)
+    delta_days = (date - start_date).days
+    return delta_days * slots_per_day + dayslot
+
+
+def create_unavailable_constraints(
+    model,
+    data={},
+    prefix="Unavailable",
+    start_day=datetime.date.fromisocalendar(2022, 1, 1),
+    horizon=70,
+):
     intervals = {}
     for label, ldata_list in data.items():
         if "unavailable" in ldata_list.keys():
             for ldata in ldata_list["unavailable"]:
                 if ldata["kind"] == "isocalendar":
-                    from_day = datetime.date.fromisocalendar(
+                    from_year = ldata["from_year"]
+                    from_week = ldata["from_week"]
+                    from_weekday = ldata["from_weekday"]
+                    from_dayslot = ldata["from_dayshift"]
+                    to_year = ldata["to_year"]
+                    to_week = ldata["to_week"]
+                    to_weekday = ldata["to_weekday"]
+                    to_dayslot = ldata["to_dayshift"]
+
+                    """from_day = datetime.date.fromisocalendar(
                         ldata["from_year"], ldata["from_week"], ldata["from_weekday"]
                     )
                     to_day = datetime.date.fromisocalendar(
                         ldata["to_year"], ldata["to_week"], ldata["to_weekday"]
+                    )"""
+                    from_slot = isocalendar_to_slot(
+                        year=from_year,
+                        week=from_week,
+                        weekday=from_weekday,
+                        dayslot=from_dayslot,
+                        start_date=start_day,
+                        slots_per_day=10,
                     )
-                    from_day_offset = (from_day - START_DAY).days
-                    to_day_offset = (to_day - START_DAY).days
-                    from_day_offset = max(from_day_offset, 0)
-                    to_day_offset = max(to_day_offset, 0)
-                    # from_day_offset = min(from_day_offset, horizon)
+                    to_slot = isocalendar_to_slot(
+                        year=to_year,
+                        week=to_week,
+                        weekday=to_weekday,
+                        dayslot=to_dayslot,
+                        start_date=start_day,
+                        slots_per_day=10,
+                    )
+                    # from_day_offset = (from_day - START_DAY).days
+                    # to_day_offset = (to_day - START_DAY).days
+                    # from_day_offset = max(from_day_offset, 0)
+                    # to_day_offset = max(to_day_offset, 0)
+                    # # from_day_offset = min(from_day_offset, horizon)
                     # to_day_offset = min(to_day_offset, horizon)
-                    if from_day_offset < to_day_offset:
-                        from_shift = (
-                            from_day_offset * TIME_SLOTS_PER_DAY
-                            + ldata["from_dayshift"]
-                        )
-                        to_shift = (
-                            to_day_offset * TIME_SLOTS_PER_DAY + ldata["to_dayshift"]
-                        )
-                        duration = to_shift - from_shift
-
                 if "repeat" not in ldata.keys():
                     repeat = 1
                     repeat_pad = 70
@@ -159,24 +198,33 @@ def create_unavailable_constraints(model, data={}, prefix="Unavailable"):
                     repeat_pad = ldata["repeat_pad"]
                 iteration = 0
                 while iteration < repeat:
-                    interval_label = (
-                        f"Unavailable_{label}_{from_shift}_{to_shift}_{repeat}"
-                    )
-                    interval = model.NewIntervalVar(
-                        from_shift + iteration * repeat_pad,
-                        duration,
-                        to_shift + iteration * repeat_pad,
-                        interval_label,
-                    )
-                    if label not in intervals.keys():
-                        intervals[label] = []
-                    intervals[label].append(interval)
+                    from_slot_repeat = max(from_slot, 0)
+                    from_slot_repeat = min(from_slot_repeat, horizon)
+                    to_slot_repeat = max(to_slot, 0)
+                    to_slot_repeat = min(to_slot_repeat, horizon)
+                    if from_slot_repeat < to_slot_repeat:
+                        duration = to_slot - from_slot
+                        interval_label = f"Unavailable_{label}_{from_slot_repeat}_{to_slot_repeat}_{repeat}"
+                        interval = model.NewIntervalVar(
+                            from_slot_repeat + iteration * repeat_pad,
+                            duration,
+                            to_slot_repeat + iteration * repeat_pad,
+                            interval_label,
+                        )
+                        if label not in intervals.keys():
+                            intervals[label] = []
+                        intervals[label].append(interval)
                     iteration += 1
+
     return intervals
 
 
-teacher_unavailable_intervals = create_unavailable_constraints(model, data=teacher_data)
-room_unavailable_intervals = create_unavailable_constraints(model, data=room_data)
+teacher_unavailable_intervals = create_unavailable_constraints(
+    model, data=teacher_data, start_day=START_DAY, horizon=horizon
+)
+room_unavailable_intervals = create_unavailable_constraints(
+    model, data=room_data, start_day=START_DAY, horizon=horizon
+)
 # ROOM UNAVAILABILITY
 """room_unavailable_intervals = {}
 for room, rdata in room_data.items():
@@ -191,9 +239,8 @@ for room, rdata in room_data.items():
 
 """
 # STUDENT UNAVAILABILITY
-student_unavailable_intervals = OrderedDict(
-    {student: [] for student in unique_students_groups}
-)
+student_unavailable_intervals = {student: [] for student in unique_students_groups}
+
 
 # NIGHT SHIFTS & LUNCH BREAKS AND WEEK-ENDS!
 flat_week_structure = WEEK_STRUCTURE.flatten()
@@ -238,7 +285,7 @@ for week in range(MAX_WEEKS):
             student_unavailable_intervals[student].append(interval)
 
 activity_ends = []
-data = OrderedDict()
+data = {}
 
 previous_end = None
 teacher_intervals = {t: [] for t in unique_teachers}
