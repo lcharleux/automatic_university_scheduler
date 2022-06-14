@@ -70,7 +70,10 @@ RUN source /home/$USERNAME/.bashrc \
       pre-commit black xlsxwriter \
  && conda install -y -c anaconda openpyxl
 
+RUN conda activate $ENVNAME \
+ && conda install -c conda-forge scipy
 
+ENV CONDA_ENV /opt/conda/envs/ortools/bin/
 
 SHELL ["/bin/bash", "--login", "-c"]
 RUN /bin/bash ~/.bashrc

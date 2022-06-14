@@ -1,1 +1,2 @@
-doc/schedule.xlsx
+*.xlsx
+*.xlsx#
