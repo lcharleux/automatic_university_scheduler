@@ -2,10 +2,14 @@
 // https://github.com/microsoft/vscode-dev-containers/tree/v0.238.0/containers/python-3-miniconda
 {
 	"name": "OR-Tools",
-	"build": {
-		"context": "..",
-		"dockerfile": "Dockerfile",
-	},
+	// "build": {
+	// 	"context": "..",
+	// 	"dockerfile": "Dockerfile",
+	// },
+	"dockerComposeFile": "docker-compose.yml",
+	"service": "runner",
+	"workspaceFolder": "/automatic_university_scheduler",
+	"shutdownAction": "stopCompose",
 	// Configure tool-specific properties.
 	"customizations": {
 		// Configure properties specific to VS Code.
@@ -25,7 +29,7 @@
 				"python.linting.pydocstylePath": "/usr/local/py-utils/bin/pydocstyle",
 				"python.linting.pylintPath": "/usr/local/py-utils/bin/pylint",
 				"terminal.integrated.defaultProfile.linux": "bash (container default)",
-				"terminal.integrated.shell.linux": "bash",
+				"terminal.integrated.shell.linux": "/bin/bash",
 				"terminal.integrated.profiles.linux": {
 					"bash (container default)": {
 						"path": "/bin/bash",
@@ -41,7 +45,8 @@
 			]
 		}
 	},
-	"postCreateCommand": "ps -p $$ && echo '----------------' && /bin/bash .devcontainer/postCommand.sh"
+	// "postCreateCommand": "/bin/bash postCommand.sh",
+	// "postCreateCommand": "ps -p $$ && echo '----------------' && cd /automatic_university_scheduler && /bin/bash /.devcontainer/postCommand.sh"
 
 	//"postAttachCommand": "/bin/bash"
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
@@ -49,5 +54,5 @@
 	// Use 'postCreateCommand' to run commands after the container is created.
 	// "postCreateCommand": "python --version",
 	// Comment out to connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
-	//"remoteUser": "vscode"
+
 }
