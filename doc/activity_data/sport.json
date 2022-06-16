@@ -6,10 +6,20 @@
                 "kind": "TP",
                 "duration": 3,
                 "teachers": [
-                    "Sport_Teacher_A"
+                    [
+                        1,
+                        [
+                            "Sport_Teacher_A"
+                        ]
+                    ]
                 ],
                 "rooms": [
-                    "Gymnasium"
+                    [
+                        1,
+                        [
+                            "Gymnasium"
+                        ]
+                    ]
                 ],
                 "students": "TDA",
                 "after": {},
@@ -22,10 +32,20 @@
                 "kind": "TP",
                 "duration": 3,
                 "teachers": [
-                    "Sport_Teacher_A"
+                    [
+                        1,
+                        [
+                            "Sport_Teacher_A"
+                        ]
+                    ]
                 ],
                 "rooms": [
-                    "Gymnasium"
+                    [
+                        1,
+                        [
+                            "Gymnasium"
+                        ]
+                    ]
                 ],
                 "students": "TDA",
                 "after": {
@@ -45,10 +65,20 @@
                 "kind": "TP",
                 "duration": 3,
                 "teachers": [
-                    "Sport_Teacher_A"
+                    [
+                        1,
+                        [
+                            "Sport_Teacher_A"
+                        ]
+                    ]
                 ],
                 "rooms": [
-                    "Gymnasium"
+                    [
+                        1,
+                        [
+                            "Gymnasium"
+                        ]
+                    ]
                 ],
                 "students": "TDA",
                 "after": {
@@ -68,10 +98,20 @@
                 "kind": "TP",
                 "duration": 3,
                 "teachers": [
-                    "Sport_Teacher_A"
+                    [
+                        1,
+                        [
+                            "Sport_Teacher_A"
+                        ]
+                    ]
                 ],
                 "rooms": [
-                    "Gymnasium"
+                    [
+                        1,
+                        [
+                            "Gymnasium"
+                        ]
+                    ]
                 ],
                 "students": "TDB",
                 "after": {},
@@ -84,10 +124,20 @@
                 "kind": "TP",
                 "duration": 3,
                 "teachers": [
-                    "Sport_Teacher_A"
+                    [
+                        1,
+                        [
+                            "Sport_Teacher_A"
+                        ]
+                    ]
                 ],
                 "rooms": [
-                    "Gymnasium"
+                    [
+                        1,
+                        [
+                            "Gymnasium"
+                        ]
+                    ]
                 ],
                 "students": "TDB",
                 "after": {
@@ -107,10 +157,20 @@
                 "kind": "TP",
                 "duration": 3,
                 "teachers": [
-                    "Sport_Teacher_A"
+                    [
+                        1,
+                        [
+                            "Sport_Teacher_A"
+                        ]
+                    ]
                 ],
                 "rooms": [
-                    "Gymnasium"
+                    [
+                        1,
+                        [
+                            "Gymnasium"
+                        ]
+                    ]
                 ],
                 "students": "TDB",
                 "after": {
@@ -130,10 +190,20 @@
                 "kind": "TP",
                 "duration": 3,
                 "teachers": [
-                    "Sport_Teacher_A"
+                    [
+                        1,
+                        [
+                            "Sport_Teacher_A"
+                        ]
+                    ]
                 ],
                 "rooms": [
-                    "Gymnasium"
+                    [
+                        1,
+                        [
+                            "Gymnasium"
+                        ]
+                    ]
                 ],
                 "students": "TDC",
                 "after": {},
@@ -146,10 +216,20 @@
                 "kind": "TP",
                 "duration": 3,
                 "teachers": [
-                    "Sport_Teacher_A"
+                    [
+                        1,
+                        [
+                            "Sport_Teacher_A"
+                        ]
+                    ]
                 ],
                 "rooms": [
-                    "Gymnasium"
+                    [
+                        1,
+                        [
+                            "Gymnasium"
+                        ]
+                    ]
                 ],
                 "students": "TDC",
                 "after": {
@@ -169,10 +249,20 @@
                 "kind": "TP",
                 "duration": 3,
                 "teachers": [
-                    "Sport_Teacher_A"
+                    [
+                        1,
+                        [
+                            "Sport_Teacher_A"
+                        ]
+                    ]
                 ],
                 "rooms": [
-                    "Gymnasium"
+                    [
+                        1,
+                        [
+                            "Gymnasium"
+                        ]
+                    ]
                 ],
                 "students": "TDC",
                 "after": {
@@ -192,26 +282,41 @@
                 "kind": "TP",
                 "duration": 3,
                 "teachers": [
-                    "Sport_Teacher_A"
+                    [
+                        1,
+                        [
+                            "Sport_Teacher_A"
+                        ]
+                    ]
                 ],
                 "rooms": [
-                    "Gymnasium"
+                    [
+                        1,
+                        [
+                            "Gymnasium"
+                        ]
+                    ]
                 ],
-                "students": "TDD",
-                "after": {},
-                "forbidden_weekdays": [
-                    1,
-                    4
-                ]
+                "students": "TDD"
             },
             "SPORT_TDD2": {
                 "kind": "TP",
                 "duration": 3,
                 "teachers": [
-                    "Sport_Teacher_A"
+                    [
+                        1,
+                        [
+                            "Sport_Teacher_A"
+                        ]
+                    ]
                 ],
                 "rooms": [
-                    "Gymnasium"
+                    [
+                        1,
+                        [
+                            "Gymnasium"
+                        ]
+                    ]
                 ],
                 "students": "TDD",
                 "after": {
@@ -231,10 +336,20 @@
                 "kind": "TP",
                 "duration": 3,
                 "teachers": [
-                    "Sport_Teacher_A"
+                    [
+                        1,
+                        [
+                            "Sport_Teacher_A"
+                        ]
+                    ]
                 ],
                 "rooms": [
-                    "Gymnasium"
+                    [
+                        1,
+                        [
+                            "Gymnasium"
+                        ]
+                    ]
                 ],
                 "students": "TDD",
                 "after": {

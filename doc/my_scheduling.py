@@ -45,6 +45,27 @@ STOP_DAY = datetime.date.fromisocalendar(2022, 36, 1) + datetime.timedelta(
     weeks=MAX_WEEKS
 )
 
+# ACTIVITY GENERATION
+"""# MATH500
+class Course:
+    pass
+n_course = 14
+label = "MATH500"
+color = "green"
+out = {label: {"color": color, "activities": {}}}
+activity_label_template = "MATH5000_{group}_{index}"
+teacher = "Math_Teacher_A"
+group = "TDAB"
+activity_template = {
+    "kind": "TD",
+    "duration": 1,
+    "teachers": [[1, [teacher]]],
+    "rooms": [[1, ["TD_Room_1", "TD_Room_2", "TD_Room_3", "TD_Room_4", "TD_Room_5"]]],
+    "students": group,
+    "after": {"MATH500": {after_activity_label: {"min_ofsset": 0}}},
+}"""
+
+
 print("Horizon = %i" % horizon)
 
 activity_data_dir = "activity_data/"
@@ -68,15 +89,19 @@ students_groups = {
         "TPD2",
         "TPE1",
         "TPE2",
+        "TPG1",
+        "TPG2",
     ],
     "CM_MM": ["TPA1", "TPA2", "TPB1", "TPB2", "TPC1", "TPC2"],
     "CM_IAI": ["TPD1", "TPD2"],
-    "CM_IDU": ["TPE1", "TPE2"],
+    "CM_IDU": ["TPG1", "TPG2"],
+    "TDAB": ["TPA1", "TPA2", "TPB1", "TPB2"],
     "TDA": ["TPA1", "TPA2"],
     "TDB": ["TPB1", "TPB2"],
     "TDC": ["TPC1", "TPC2"],
-    "TDD": ["TDD1", "TDD2"],
-    "TDE": ["TDE1", "TDE2"],
+    "TDD": ["TPD1", "TPD2"],
+    "TDE": ["TPE1", "TPE2"],
+    "TDG": ["TPG1", "TPG2"],
     "TPA1": ["TPA1"],
     "TPA2": ["TPA2"],
     "TPB1": ["TPB1"],
@@ -87,6 +112,8 @@ students_groups = {
     "TPD2": ["TPD2"],
     "TPE1": ["TPE1"],
     "TPE2": ["TPE2"],
+    "TPG2": ["TPE2"],
+    "TPG2": ["TPE2"],
     "TDA+B": ["TPA1", "TPA2", "TPB1", "TPB2"],
 }
 
@@ -129,7 +156,7 @@ model.Minimize(makespan)
 
 # Solve model.
 solver = cp_model.CpSolver()
-solver.parameters.max_time_in_seconds = 10.0
+solver.parameters.max_time_in_seconds = 30.0
 
 solution_printer = SolutionPrinter(limit=5)
 status = solver.Solve(model, solution_printer)

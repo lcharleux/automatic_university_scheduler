@@ -1,0 +1,289 @@
+{
+    "MATH500": {
+        "color": "green",
+        "activities": {
+            "MATH500_TDAB1": {
+                "kind": "TD",
+                "duration": 1,
+                "teachers": [
+                    [
+                        1,
+                        [
+                            "Math_Teacher_A"
+                        ]
+                    ]
+                ],
+                "rooms": [
+                    [
+                        1,
+                        [
+                            "TD_Room_1",
+                            "TD_Room_2",
+                            "TD_Room_3",
+                            "TD_Room_4",
+                            "TD_Room_5"
+                        ]
+                    ]
+                ],
+                "students": "TDAB",
+                "after": {}
+            },
+            "MATH500_TDAB2": {
+                "kind": "TD",
+                "duration": 1,
+                "teachers": [
+                    [
+                        1,
+                        [
+                            "Math_Teacher_A"
+                        ]
+                    ]
+                ],
+                "rooms": [
+                    [
+                        1,
+                        [
+                            "TD_Room_1",
+                            "TD_Room_2",
+                            "TD_Room_3",
+                            "TD_Room_4",
+                            "TD_Room_5"
+                        ]
+                    ]
+                ],
+                "students": "TDAB",
+                "after": {
+                    "MATH500": {
+                        "MATH500_TDAB1": {
+                            "min_offset": 0
+                        }
+                    }
+                }
+            },
+            "MATH500_TDAB3": {
+                "kind": "TD",
+                "duration": 1,
+                "teachers": [
+                    [
+                        1,
+                        [
+                            "Math_Teacher_A"
+                        ]
+                    ]
+                ],
+                "rooms": [
+                    [
+                        1,
+                        [
+                            "TD_Room_1",
+                            "TD_Room_2",
+                            "TD_Room_3",
+                            "TD_Room_4",
+                            "TD_Room_5"
+                        ]
+                    ]
+                ],
+                "students": "TDAB",
+                "after": {
+                    "MATH500": {
+                        "MATH500_TDAB2": {
+                            "min_offset": 0
+                        }
+                    }
+                }
+            },
+            "CMATH500_TDAB4": {
+                "kind": "TD",
+                "duration": 1,
+                "teachers": [
+                    [
+                        1,
+                        [
+                            "Math_Teacher_A"
+                        ]
+                    ]
+                ],
+                "rooms": [
+                    [
+                        1,
+                        [
+                            "TD_Room_1",
+                            "TD_Room_2",
+                            "TD_Room_3",
+                            "TD_Room_4",
+                            "TD_Room_5"
+                        ]
+                    ]
+                ],
+                "students": "TDAB",
+                "after": {
+                    "MATH500": {
+                        "MATH500_TDAB3": {
+                            "min_offset": 0
+                        }
+                    }
+                }
+            },
+            "MATH500_TDAB5": {
+                "kind": "TD",
+                "duration": 1,
+                "teachers": [
+                    [
+                        1,
+                        [
+                            "Math_Teacher_A"
+                        ]
+                    ]
+                ],
+                "rooms": [
+                    [
+                        1,
+                        [
+                            "TD_Room_1",
+                            "TD_Room_2",
+                            "TD_Room_3",
+                            "TD_Room_4",
+                            "TD_Room_5"
+                        ]
+                    ]
+                ],
+                "students": "TDAB",
+                "after": {
+                    "MATH500": {
+                        "MATH500_TDAB4": {
+                            "min_offset": 0
+                        }
+                    }
+                }
+            },
+            "MATH500_TDAB6": {
+                "kind": "TD",
+                "duration": 1,
+                "teachers": [
+                    [
+                        1,
+                        [
+                            "Math_Teacher_A"
+                        ]
+                    ]
+                ],
+                "rooms": [
+                    [
+                        1,
+                        [
+                            "TD_Room_1",
+                            "TD_Room_2",
+                            "TD_Room_3",
+                            "TD_Room_4",
+                            "TD_Room_5"
+                        ]
+                    ]
+                ],
+                "students": "TDAB",
+                "after": {
+                    "MATH500": {
+                        "MATH500_TDAB5": {
+                            "min_offset": 0
+                        }
+                    }
+                }
+            },
+            "MATH500_TDAB7": {
+                "kind": "TD",
+                "duration": 1,
+                "teachers": [
+                    [
+                        1,
+                        [
+                            "Math_Teacher_A"
+                        ]
+                    ]
+                ],
+                "rooms": [
+                    [
+                        1,
+                        [
+                            "TD_Room_1",
+                            "TD_Room_2",
+                            "TD_Room_3",
+                            "TD_Room_4",
+                            "TD_Room_5"
+                        ]
+                    ]
+                ],
+                "students": "TDAB",
+                "after": {
+                    "MATH500": {
+                        "MATH500_TDAB6": {
+                            "min_offset": 0
+                        }
+                    }
+                }
+            },
+            "MATH500_TDAB8": {
+                "kind": "TD",
+                "duration": 1,
+                "teachers": [
+                    [
+                        1,
+                        [
+                            "Math_Teacher_A"
+                        ]
+                    ]
+                ],
+                "rooms": [
+                    [
+                        1,
+                        [
+                            "TD_Room_1",
+                            "TD_Room_2",
+                            "TD_Room_3",
+                            "TD_Room_4",
+                            "TD_Room_5"
+                        ]
+                    ]
+                ],
+                "students": "TDAB",
+                "after": {
+                    "MATH500": {
+                        "MATH500_TDAB7": {
+                            "min_offset": 0
+                        }
+                    }
+                }
+            },
+            "MATH500_TDAB9": {
+                "kind": "TD",
+                "duration": 1,
+                "teachers": [
+                    [
+                        1,
+                        [
+                            "Math_Teacher_A"
+                        ]
+                    ]
+                ],
+                "rooms": [
+                    [
+                        1,
+                        [
+                            "TD_Room_1",
+                            "TD_Room_2",
+                            "TD_Room_3",
+                            "TD_Room_4",
+                            "TD_Room_5"
+                        ]
+                    ]
+                ],
+                "students": "TDAB",
+                "after": {
+                    "MATH500": {
+                        "MATH500_TDAB7": {
+                            "min_offset": 0
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

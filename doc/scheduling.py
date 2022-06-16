@@ -22,6 +22,86 @@ DAYS_NAMES = [
 ]
 
 
+class Course:
+    def __init__(self, label, color="red"):
+        self.label = label
+        self.color = color
+        self.activities = {}
+
+    def to_dict(self):
+        out = {self.label: {"color": self.color}}
+        actitivies_dict = {}
+        for alabel, activity in self.activities.items():
+            actitivies_dict[alabel] = activity.to_dict()
+        out[self.label]["activities"] = actitivies_dict
+        return out
+
+    def add_activity(self, activity):
+        activity.parent = self
+        self.activities[activity.label] = activity
+
+
+class Activity:
+    def __init__(
+        self,
+        label,
+        kind="TD",
+        duration=1,
+        teachers=None,
+        rooms=None,
+        students=None,
+        after=None,
+        parent=None,
+    ):
+        self.label = label
+        self.kind = kind
+        self.duration = duration
+        self.teachers = []
+        self.rooms = []
+        self.students = students
+        self.after = {}
+        self.parent = parent
+        if parent != None:
+            parent.add_activity(self)
+
+    def add_ressources(self, pool, kind="teachers", quantity=1):
+        if kind == "teachers":
+            self.teachers.append((quantity, pool))
+        elif kind == "rooms":
+            self.rooms.append((quantity, pool))
+
+    def add_after(self, other, min_offset=0, max_offset=None):
+        out = {}
+        if min_offset is not None:
+            out["min_offset"] = min_offset
+        if max_offset is not None:
+            out["max_offset"] = max_offset
+        if len(out) > 0:
+            self.after[other.parent.label] = {other.label: out}
+
+    def add_after_manual(
+        self, parent_label, activity_label, min_offset=0, max_offset=None
+    ):
+        out = {}
+        if min_offset is not None:
+            out["min_offset"] = min_offset
+        if max_offset is not None:
+            out["max_offset"] = max_offset
+        if len(out) > 0:
+            self.after[parent_label] = {activity_label: out}
+
+    def to_dict(self):
+        out = {
+            "kind": self.kind,
+            "duration": self.duration,
+            "teachers": self.teachers,
+            "rooms": self.rooms,
+            "after": self.after,
+            "students": self.students,
+        }
+        return out
+
+
 def get_atomic_students_groups(students_groups):
     return np.sort(
         np.unique(np.concatenate([v for k, v in students_groups.items()]))
@@ -34,9 +114,10 @@ def get_unique_teachers_and_rooms(activity_data):
     for module, data in activity_data.items():
         if "activities" in data.keys():
             for label, activity in data["activities"].items():
-                rooms += activity["rooms"]
-                teachers += activity["teachers"]
-
+                for _, rpool in activity["rooms"]:
+                    rooms += rpool
+                for _, tpool in activity["teachers"]:
+                    teachers += tpool
     return np.sort(np.unique(teachers)), np.sort(np.unique(rooms))
 
 
@@ -213,9 +294,9 @@ def export_solution(
         "end": [],
         "daystart": [],
         "dayend": [],
-        "teacher": [],
+        "teachers": [],
         "students": [],
-        "room": [],
+        "rooms": [],
         "year": [],
         "month": [],
         "day": [],
@@ -240,8 +321,8 @@ def export_solution(
             teacher = None
             for alt_label, alt in activity_model["alts"].items():
                 if solver.Value(alt["presence"]):
-                    room = alt["room"]
-                    teacher = alt["teacher"]
+                    rooms = alt["rooms"]
+                    teachers = alt["teachers"]
             students = activity["students"]
             solution["module"].append(mlabel)
             solution["label"].append(alabel)
@@ -250,14 +331,14 @@ def export_solution(
             solution["end"].append(end)
             solution["daystart"].append(start % time_slots_per_day)
             solution["dayend"].append(end % time_slots_per_day)
-            solution["teacher"].append(teacher)
+            solution["teachers"].append(teachers)
             solution["students"].append(students)
             for group in atomic_students_groups:
                 if group in students_groups[students]:
                     solution[group].append(1)
                 else:
                     solution[group].append(0)
-            solution["room"].append(room)
+            solution["rooms"].append(rooms)
 
             solution["year"].append(date.year)
             solution["month"].append(date.month)
@@ -290,6 +371,9 @@ def create_activities(
         for label, activity in module["activities"].items():
             start = model.NewIntVar(0, horizon, "start_" + label)
             end = model.NewIntVar(0, horizon, "end_" + label)
+            interval = model.NewOptionalIntervalVar(
+                start, duration, end, "interval" + label
+            )
             duration = activity["duration"]
             # after_list = activity["after"]
             model.Add(end == start + duration)
@@ -300,12 +384,39 @@ def create_activities(
             act_data = {}
             act_data["start"] = start
             act_data["end"] = end
+            act_data["interval"] = interval
             act_data["alts"] = {}
             act_presences = []
             # ALTERNATIVE EXISTENCE
-            for teacher, room in itertools.product(teachers, rooms):
+            kind = []
+            items = []
+            for number, teacherpool in teachers:
+                items.append(itertools.combinations(teacherpool, number))
+                kind.append("teacher")
+            for number, roompool in rooms:
+                items.append(itertools.combinations(roompool, number))
+                kind.append("room")
+            combinations = [p for p in itertools.product(*items)]
+            for icomb in range(len(combinations)):
+                combination = combinations[icomb]
+                comb_rooms = np.concatenate(
+                    [
+                        combination[i]
+                        for i in range(len(combination))
+                        if kind[i] == "room"
+                    ]
+                )
+                comb_teachers = np.concatenate(
+                    [
+                        combination[i]
+                        for i in range(len(combination))
+                        if kind[i] == "teacher"
+                    ]
+                )
                 alt_act_data = {}
-                alt_label = f"{label}_{teacher}_{room}"
+                rooms_label = "_".join(comb_rooms)
+                teachers_label = "_".join(comb_teachers)
+                alt_label = f"{label}_{teachers_label}_{rooms_label}"
                 alt_presence = model.NewBoolVar("presence_" + alt_label)
                 alt_start = model.NewIntVar(0, horizon, "start_" + alt_label)
                 alt_end = model.NewIntVar(0, horizon, "end_" + alt_label)
@@ -317,17 +428,19 @@ def create_activities(
                 model.Add(end == alt_end).OnlyEnforceIf(alt_presence)
 
                 # TEACHER INTERVALS
-                teacher_intervals[teacher].append(alt_interval)
+                for teacher in comb_teachers:
+                    teacher_intervals[teacher].append(alt_interval)
                 # ROOM INTERVALS
-                room_intervals[room].append(alt_interval)
+                for room in comb_rooms:
+                    room_intervals[room].append(alt_interval)
                 # STUDENTS INTERVALS
                 for g in sgroups:
                     students_intervals[g].append(alt_interval)
                 alt_act_data["start"] = alt_start
                 alt_act_data["end"] = alt_end
                 alt_act_data["presence"] = alt_presence
-                alt_act_data["room"] = room
-                alt_act_data["teacher"] = teacher
+                alt_act_data["rooms"] = comb_rooms
+                alt_act_data["teachers"] = comb_teachers
                 act_data["alts"][alt_label] = alt_act_data
                 act_presences.append(alt_presence)
             model.Add(sum(act_presences) == 1)
@@ -451,7 +564,7 @@ def export_student_schedule_to_xlsx(
                     cstart = cslice.start + day_offset
                     rstop = rslice.stop + row_offset - 1
                     cstop = cslice.stop + day_offset - 1
-                    label = f"{activity.label}\n{activity.room}\n{activity.teacher}"
+                    label = f"{activity.label}\n{activity.rooms}\n{activity.teachers}"
                     if (rstart != rstop) or (cstart != cstop):
                         worksheet.merge_range(
                             rstart,
