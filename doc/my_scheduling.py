@@ -9,6 +9,7 @@ import os
 from scipy import ndimage
 import json
 import os
+import time
 from scheduling import (
     read_json_data,
     get_unique_teachers_and_rooms,
@@ -72,7 +73,7 @@ activity_data_dir = "activity_data/"
 teacher_data_dir = "teacher_data/"
 room_data_dir = "room_data/"
 teacher_data = read_json_data(teacher_data_dir)
-activity_data = read_json_data(activity_data_dir)
+activity_data = read_json_data(activity_data_dir)  # , contains="Meca501")
 room_data = read_json_data(room_data_dir)
 
 
@@ -156,11 +157,15 @@ model.Minimize(makespan)
 
 # Solve model.
 solver = cp_model.CpSolver()
-solver.parameters.max_time_in_seconds = 30.0
 
-solution_printer = SolutionPrinter(limit=5)
+solver.parameters.max_time_in_seconds = 60.0
+
+
+solution_printer = SolutionPrinter(limit=100)
+t0 = time.time()
 status = solver.Solve(model, solution_printer)
-
+t1 = time.time()
+print(f"Elapsed time: {t1-t0:.2f} s")
 
 solution = export_solution(
     activity_data,
@@ -175,5 +180,10 @@ if not os.path.isdir("./outputs"):
     os.mkdir("outputs")
 
 export_student_schedule_to_xlsx(
-    xlsx_path, solution, students_groups, week_structure=WEEK_STRUCTURE
+    xlsx_path,
+    solution,
+    students_groups,
+    week_structure=WEEK_STRUCTURE,
+    row_height=30,
+    column_width=30,
 )

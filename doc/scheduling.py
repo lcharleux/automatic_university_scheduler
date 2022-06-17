@@ -1,15 +1,11 @@
-from calendar import week
 import datetime
-from pickletools import StackObject
 from ortools.sat.python import cp_model
 import numpy as np
-from collections import OrderedDict
 import itertools
 import pandas as pd
 import os
 from scipy import ndimage
 import json
-
 
 DAYS_NAMES = [
     "Monday",
@@ -77,7 +73,10 @@ class Activity:
         if max_offset is not None:
             out["max_offset"] = max_offset
         if len(out) > 0:
-            self.after[other.parent.label] = {other.label: out}
+            if other.parent.label not in self.after.keys():
+                self.after[other.parent.label] = {}
+            self.after[other.parent.label][other.label] = out
+        return self
 
     def add_after_manual(
         self, parent_label, activity_label, min_offset=0, max_offset=None
@@ -88,7 +87,14 @@ class Activity:
         if max_offset is not None:
             out["max_offset"] = max_offset
         if len(out) > 0:
-            self.after[parent_label] = {activity_label: out}
+            if parent_label not in self.after.keys():
+                self.after[parent_label] = {}
+            self.after[parent_label][activity_label] = out
+        return self
+
+    def reset_after(self):
+        self.after = {}
+        return self
 
     def to_dict(self):
         out = {
@@ -144,13 +150,21 @@ class SolutionPrinter(cp_model.CpSolverSolutionCallback):
         return self.__solution_count
 
 
-def read_json_data(directory=""):
+def read_json_data(directory="", contains=None):
     all_data = {}
     for file in os.listdir(directory):
         if file.endswith(".json"):
-            raw_data = json.load(open(directory + file))
-            for label, data in raw_data.items():
-                all_data[label] = data
+            if contains != None:
+                if contains in file:
+                    use_file = True
+                else:
+                    use_file = False
+            else:
+                use_file = True
+            if use_file:
+                raw_data = json.load(open(directory + file))
+                for label, data in raw_data.items():
+                    all_data[label] = data
     return all_data
 
 
@@ -371,10 +385,8 @@ def create_activities(
         for label, activity in module["activities"].items():
             start = model.NewIntVar(0, horizon, "start_" + label)
             end = model.NewIntVar(0, horizon, "end_" + label)
-            interval = model.NewOptionalIntervalVar(
-                start, duration, end, "interval" + label
-            )
             duration = activity["duration"]
+            interval = model.NewIntervalVar(start, duration, end, "interval" + label)
             # after_list = activity["after"]
             model.Add(end == start + duration)
             teachers = activity["teachers"]
@@ -502,7 +514,7 @@ def create_activities(
 
 
 def export_student_schedule_to_xlsx(
-    xlsx_path, solution, students_groups, week_structure
+    xlsx_path, solution, students_groups, week_structure, column_width=40, row_height=40
 ):
     days_per_week, time_slots_per_day = week_structure.shape
     atomic_students_groups = get_atomic_students_groups(students_groups)
@@ -527,6 +539,10 @@ def export_student_schedule_to_xlsx(
     for week, group in solution.groupby("week"):
         slots_df.to_excel(writer, sheet_name=f"Week_{week}", index=False, startrow=1)
         worksheet = writer.sheets[f"Week_{week}"]
+        worksheet.set_default_row(row_height)
+        worksheet.set_column(
+            1, len(atomic_students_groups) * days_per_week + 1, column_width
+        )  #
         for nday in range(len(DAYS_NAMES)):
             day_name = DAYS_NAMES[nday]
             day_df.to_excel(

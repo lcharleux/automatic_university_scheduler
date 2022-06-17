@@ -24,7 +24,7 @@
                 "students": "TDA",
                 "after": {},
                 "forbidden_weekdays": [
-                    1,
+                    2,
                     4
                 ]
             },
@@ -57,7 +57,7 @@
                     }
                 },
                 "forbidden_weekdays": [
-                    1,
+                    2,
                     4
                 ]
             },
@@ -90,7 +90,7 @@
                     }
                 },
                 "forbidden_weekdays": [
-                    1,
+                    2,
                     4
                 ]
             },
@@ -116,7 +116,7 @@
                 "students": "TDB",
                 "after": {},
                 "forbidden_weekdays": [
-                    1,
+                    2,
                     4
                 ]
             },
@@ -149,7 +149,7 @@
                     }
                 },
                 "forbidden_weekdays": [
-                    1,
+                    2,
                     4
                 ]
             },
@@ -182,7 +182,7 @@
                     }
                 },
                 "forbidden_weekdays": [
-                    1,
+                    2,
                     4
                 ]
             },
@@ -208,7 +208,7 @@
                 "students": "TDC",
                 "after": {},
                 "forbidden_weekdays": [
-                    1,
+                    2,
                     4
                 ]
             },
@@ -241,7 +241,7 @@
                     }
                 },
                 "forbidden_weekdays": [
-                    1,
+                    2,
                     4
                 ]
             },
@@ -274,7 +274,7 @@
                     }
                 },
                 "forbidden_weekdays": [
-                    1,
+                    2,
                     4
                 ]
             },
@@ -328,7 +328,7 @@
                     }
                 },
                 "forbidden_weekdays": [
-                    1,
+                    2,
                     4
                 ]
             },
@@ -361,7 +361,7 @@
                     }
                 },
                 "forbidden_weekdays": [
-                    1,
+                    2,
                     4
                 ]
             }

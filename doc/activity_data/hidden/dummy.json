@@ -1,0 +1,64 @@
+{
+    "Math500": {
+        "color": "red",
+        "activities": {
+            "Dummy_TDA_1": {
+                "kind": "TD",
+                "duration": 1,
+                "teachers": [
+                    [
+                        1,
+                        [
+                            "Math_teacher_1",
+                            "Math_teacher_2"
+
+                        ]
+                    ]
+                ],
+                "rooms": [
+                    [
+                        1,
+                        [
+                            "TD_Room_1",
+                            "TD_Room_2",
+                            "TD_Room_3",
+                            "TD_Room_4",
+                            "TD_Room_5"
+                        ]
+                    ]
+                ],
+                "after": {},
+                "students": "TDA"
+            },
+            "Dummy_TDB_1": {
+                "kind": "TD",
+                "duration": 1,
+                "teachers": [
+                    [
+                        1,
+                        [
+                            "Math_teacher_1",
+                            "Math_teacher_2"
+                        ]
+                    ]
+                ],
+                "rooms": [
+                    [
+                        1,
+                        [
+                            "TD_Room_1",
+                            "TD_Room_2",
+                            "TD_Room_3",
+                            "TD_Room_4",
+                            "TD_Room_5"
+                        ]
+                    ]
+                ],
+                "after": {
+                          },
+                "students": "TDB"
+            }
+        }
+    }
+
+}
