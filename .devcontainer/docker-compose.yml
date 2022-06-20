@@ -1,12 +1,12 @@
 version: "3.9"
 services:
-  runner:
+  ortools:
     env_file: .env
     build: 
       args:
         - USERNAME=${USERNAME}
-        - USER_UID=${UID}
-        - USER_GID=${GID}
+        - USER_UID=${USER_UID}
+        - USER_GID=${USER_GID}
         - CONDA_ENV_NAME=${CONDA_ENV_NAME}
       context: .
       dockerfile: Dockerfile-compose
@@ -14,5 +14,5 @@ services:
     stdin_open: true
     volumes:
       - ..:/${MODULE_NAME}
-      - /etc/passwd:/etc/passwd:ro
-      - /etc/group:/etc/group:ro
+      # - /etc/passwd:/etc/passwd:ro
+      # - /etc/group:/etc/group:ro

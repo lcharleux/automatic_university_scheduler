@@ -1,13 +1,22 @@
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
 // https://github.com/microsoft/vscode-dev-containers/tree/v0.238.0/containers/python-3-miniconda
 {
+	// "initializeCommand": "/bin/bash initializeCommand.sh",
 	"name": "OR-Tools",
 	// "build": {
 	// 	"context": "..",
 	// 	"dockerfile": "Dockerfile",
+	// 	"args": {
+	// 	"MODULE_NAME":"ortools",
+	// 	"IMG_NAME":"ortools",
+	// 	"TAG":"0.2",
+	// 	"USERNAME":"${localEnv:USER}",
+	// 	"USER_UID":"${localEnv:USER_UID}",
+	// 	"USER_GID":"${localEnv:USER_GID}",
+	// 	"CONDA_ENV_NAME":"ortools"}
 	// },
 	"dockerComposeFile": "docker-compose.yml",
-	"service": "runner",
+	"service": "ortools",
 	"workspaceFolder": "/automatic_university_scheduler",
 	"shutdownAction": "stopCompose",
 	// Configure tool-specific properties.
