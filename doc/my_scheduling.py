@@ -147,7 +147,7 @@ model.Minimize(makespan)
 # Solve model.
 solver = cp_model.CpSolver()
 
-solver.parameters.max_time_in_seconds = 120.0
+solver.parameters.max_time_in_seconds = 200.0
 
 
 solution_printer = SolutionPrinter(limit=100)
@@ -173,6 +173,6 @@ export_student_schedule_to_xlsx(
     solution,
     students_groups,
     week_structure=WEEK_STRUCTURE,
-    row_height=30,
-    column_width=30,
+    row_height=50,
+    column_width=25,
 )

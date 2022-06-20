@@ -8,7 +8,7 @@ from scheduling import Activity, Course
 
 n_TD = 14
 course_label = "Info501"
-course = Course(label=course_label, color="red")
+course = Course(label=course_label, color="blue")
 TD_blocks = [
     ("TDA", "Teacher_Lau"),
     ("TDB", "Teacher_YY"),

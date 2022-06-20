@@ -306,6 +306,7 @@ def export_solution(
         "kind": [],
         "start": [],
         "end": [],
+        "color": [],
         "duration": [],
         "daystart": [],
         "dayend": [],
@@ -325,6 +326,10 @@ def export_solution(
         solution[group] = []
 
     for mlabel, module in activity_data.items():
+        if "color" in module.keys():
+            mcolor = module["color"]
+        else:
+            mcolor = None
         for alabel, activity in module["activities"].items():
             activity_model = activity["model"]
             start = solver.Value(activity_model["start"])
@@ -340,6 +345,7 @@ def export_solution(
                     rooms = alt["rooms"]
                     teachers = alt["teachers"]
             students = activity["students"]
+            solution["color"].append(mcolor)
             solution["module"].append(mlabel)
             solution["label"].append(alabel)
             solution["kind"].append(activity["kind"])
@@ -528,7 +534,7 @@ def create_activities(
 
 
 def export_student_schedule_to_xlsx(
-    xlsx_path, solution, students_groups, week_structure, column_width=40, row_height=40
+    xlsx_path, solution, students_groups, week_structure, column_width=40, row_height=80
 ):
     days_per_week, time_slots_per_day = week_structure.shape
     atomic_students_groups = get_atomic_students_groups(students_groups)
@@ -580,6 +586,15 @@ def export_student_schedule_to_xlsx(
 
         # week_activities = group.label.unique()
         for label, activity in group.iterrows():
+            cell_format = workbook.add_format(
+                {
+                    "align": "center",
+                    "valign": "vcenter",
+                    "border": 2,
+                    "bg_color": activity["color"],
+                    "color": "white",
+                }
+            )
             grid *= 0
             students = activity.students
             sub_groups = students_groups[students]
@@ -602,9 +617,9 @@ def export_student_schedule_to_xlsx(
                             rstop,
                             cstop,
                             label,
-                            merge_format,
+                            cell_format,
                         )
                     else:
-                        worksheet.write(rstart, cstart, label, merge_format)
+                        worksheet.write(rstart, cstart, label, cell_format)
 
     writer.save()

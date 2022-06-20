@@ -35,7 +35,7 @@ def make_TP8h(
 
 
 course_label = "Proj541"
-course = Course(label=course_label, color="red")
+course = Course(label=course_label, color="blue")
 
 
 for students in ["TPD1", "TPD2", "TPE1", "TPE2"]:
