@@ -1,2 +1,4 @@
 *.xlsx
 *.xlsx#
+doc/__pycache__/scheduling.cpython-310.pyc
+*.pyc
