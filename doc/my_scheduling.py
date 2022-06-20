@@ -47,34 +47,17 @@ STOP_DAY = datetime.date.fromisocalendar(2022, 36, 1) + datetime.timedelta(
 )
 
 # ACTIVITY GENERATION
-"""# MATH500
-class Course:
-    pass
-n_course = 14
-label = "MATH500"
-color = "green"
-out = {label: {"color": color, "activities": {}}}
-activity_label_template = "MATH5000_{group}_{index}"
-teacher = "Math_Teacher_A"
-group = "TDAB"
-activity_template = {
-    "kind": "TD",
-    "duration": 1,
-    "teachers": [[1, [teacher]]],
-    "rooms": [[1, ["TD_Room_1", "TD_Room_2", "TD_Room_3", "TD_Room_4", "TD_Room_5"]]],
-    "students": group,
-    "after": {"MATH500": {after_activity_label: {"min_ofsset": 0}}},
-}"""
-
 
 print("Horizon = %i" % horizon)
 
 activity_data_dir = "activity_data/"
 teacher_data_dir = "teacher_data/"
 room_data_dir = "room_data/"
+student_data_dir = "student_data/"
 teacher_data = read_json_data(teacher_data_dir)
 activity_data = read_json_data(activity_data_dir)  # , contains="Meca501")
 room_data = read_json_data(room_data_dir)
+calendar_data = read_json_data(student_data_dir)
 
 
 # STUDENTS GROUPS
@@ -135,6 +118,11 @@ weekly_unavailable_intervals = create_weekly_unavailable_intervals(
     model, WEEK_STRUCTURE, MAX_WEEKS
 )
 
+# STUDENT CALENDAR
+students_unavailable_intervals = create_unavailable_constraints(
+    model, data=calendar_data, start_day=START_DAY, horizon=horizon
+)
+
 
 create_activities(
     activity_data,
@@ -143,6 +131,7 @@ create_activities(
     horizon=horizon,
     teacher_unavailable_intervals=teacher_unavailable_intervals,
     room_unavailable_intervals=room_unavailable_intervals,
+    students_unavailable_intervals=students_unavailable_intervals,
     weekly_unavailable_intervals=weekly_unavailable_intervals,
 )
 # Makespan objective
@@ -158,7 +147,7 @@ model.Minimize(makespan)
 # Solve model.
 solver = cp_model.CpSolver()
 
-solver.parameters.max_time_in_seconds = 60.0
+solver.parameters.max_time_in_seconds = 120.0
 
 
 solution_printer = SolutionPrinter(limit=100)

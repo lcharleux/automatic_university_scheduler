@@ -1,13 +1,13 @@
 import json
 import copy
 
-# INFO501
+# FAKE501
 
 
 from scheduling import Activity, Course
 
 n_TD = 14
-course_label = "Info501"
+course_label = "Fake501"
 course = Course(label=course_label, color="red")
 TD_blocks = [
     ("TDA", "Teacher_Lau"),
@@ -18,18 +18,18 @@ TD_blocks = [
     ("TDG", "Teacher_YY"),
 ]
 TP_blocks = [
-    ("TDA1", "Teacher_Lau"),
-    ("TDA2", "Teacher_MP"),
-    ("TDB1", "Teacher_MP"),
-    ("TDB2", "Teacher_YY"),
-    ("TDC1", "Teacher_XX"),
-    ("TDC2", "Teacher_KS"),
-    ("TDD1", "Teacher_LauCha"),
-    ("TDD2", "Teacher_YY"),
-    ("TDE1", "Teacher_YY"),
-    ("TDE2", "Teacher_LauCha"),
-    ("TDG1", "Teacher_EmAm"),
-    ("TDG2", "Teacher_YY"),
+    ("TDA1", "Teacher_LauFake"),
+    ("TDA2", "Teacher_MPFake"),
+    ("TDB1", "Teacher_MPFake"),
+    ("TDB2", "Teacher_YYFake"),
+    ("TDC1", "Teacher_XXFake"),
+    ("TDC2", "Teacher_KSFake"),
+    ("TDD1", "Teacher_LauChaFake"),
+    ("TDD2", "Teacher_YYFake"),
+    ("TDE1", "Teacher_YYFake"),
+    ("TDE2", "Teacher_LauChaFake"),
+    ("TDG1", "Teacher_EmAmFake"),
+    ("TDG2", "Teacher_YYFake"),
 ]
 CM_rooms = ["Room_amphi_1", "Room_amphi_2"]
 CC_rooms = ["Room_amphi_1", "Room_amphi_2"]
@@ -43,7 +43,7 @@ def make_CC(
     after=None,
     min_offset=0,
     add_to=None,
-    teachers=["Teacher_Lau"],
+    teachers=["Teacher_LauFake"],
     rooms=["Room_amphi_1", "Room_amphi_2"],
 ):
     students = "CM_TC"

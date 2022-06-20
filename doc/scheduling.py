@@ -306,6 +306,7 @@ def export_solution(
         "kind": [],
         "start": [],
         "end": [],
+        "duration": [],
         "daystart": [],
         "dayend": [],
         "teachers": [],
@@ -328,6 +329,7 @@ def export_solution(
             activity_model = activity["model"]
             start = solver.Value(activity_model["start"])
             end = solver.Value(activity_model["end"])
+            duration = end - start
             date = start_day + datetime.timedelta(days=int(start) // time_slots_per_day)
             isodate = date.isocalendar()
             weekday = isodate.weekday
@@ -343,6 +345,7 @@ def export_solution(
             solution["kind"].append(activity["kind"])
             solution["start"].append(start)
             solution["end"].append(end)
+            solution["duration"].append(duration)
             solution["daystart"].append(start % time_slots_per_day)
             solution["dayend"].append(end % time_slots_per_day)
             solution["teachers"].append(teachers)
@@ -373,6 +376,7 @@ def create_activities(
     horizon,
     teacher_unavailable_intervals,
     room_unavailable_intervals,
+    students_unavailable_intervals,
     weekly_unavailable_intervals,
 ):
     unique_teachers, unique_rooms = get_unique_teachers_and_rooms(activity_data)
@@ -380,6 +384,11 @@ def create_activities(
     teacher_intervals = {t: [] for t in unique_teachers}
     room_intervals = {r: [] for r in unique_rooms}
     students_intervals = {s: [] for s in atomic_students_groups}
+    atomic_students_unavailable_intervals = {}
+    for group, intervals in students_unavailable_intervals.items():
+        agroups = students_groups[group]
+        for agroup in agroups:
+            atomic_students_unavailable_intervals[agroup] = intervals
 
     for file, module in activity_data.items():
         for label, activity in module["activities"].items():
@@ -502,6 +511,11 @@ def create_activities(
     for student, intervals in students_intervals.items():
         if len(intervals) > 1:
             all_intervals = intervals + weekly_unavailable_intervals
+            model.AddNoOverlap(all_intervals)
+
+    for student, intervals in students_intervals.items():
+        if len(intervals) > 1:
+            all_intervals = intervals + atomic_students_unavailable_intervals[student]
             model.AddNoOverlap(all_intervals)
 
     for room, intervals in room_intervals.items():
