@@ -14,5 +14,3 @@ services:
     stdin_open: true
     volumes:
       - ..:/${MODULE_NAME}
-      # - /etc/passwd:/etc/passwd:ro
-      # - /etc/group:/etc/group:ro
