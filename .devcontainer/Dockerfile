@@ -6,10 +6,18 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV LC_ALL=C
 
 # Get user parameters from runner
-ARG USERNAME=vscode
-ARG USER_UID=1000
-ARG USER_GID=$USER_UID
-ARG ENVNAME="ortools"
+ARG USERNAME
+ARG USER_UID
+ARG USER_GID
+ARG CONDA_ENV_NAME
+
+#Check args reception
+RUN echo "Creation" \
+    echo "USERNAME = $USERNAME" \
+    echo "GID = $USER_GID" \
+    echo "UID = $USER_UID" \
+    echo "CONDA_ENV_NAME = $CONDA_ENV_NAME"
+
 
 
 # Set user parameters as environment variables
@@ -28,6 +36,9 @@ RUN groupadd --gid $USER_GID $USERNAME \
     && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
     && chmod 0440 /etc/sudoers.d/$USERNAME
 
+# Log as $USER and create a .bashrc file for config
+USER ${USER_UID}:${USER_GID}
+
 # GENERAL PURPOSE INSTALLS
 RUN sudo apt-get update && sudo apt-get install -y \
         bash-completion locales \
@@ -36,10 +47,6 @@ RUN sudo apt-get update && sudo apt-get install -y \
 # LOCALES GIT BUG PREVENTION
 RUN locale-gen en_US.UTF-8
 RUN sudo localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8
-
-# Log as $USER and create a .bashrc file for config
-USER ${USERNAME}
-
 
 # Add possibility to write in /opt
 RUN sudo chown -R $USER_UID:$USER_GID /opt/conda/
@@ -54,23 +61,23 @@ ENV CONDA_DIR /opt/conda
 # Put conda in path so we can use conda activate
 ENV PATH=$CONDA_DIR/bin:$PATH
 
-RUN conda create --name $ENVNAME
-#RUN echo "conda activate $ENVNAME" >> ~/.bashrc
+RUN conda create --name $CONDA_ENV_NAME
+#RUN echo "conda activate $CONDA_ENV_NAME" >> ~/.bashrc
 RUN echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc && \
-    echo "conda activate $ENVNAME" >> ~/.bashrc
+    echo "conda activate $CONDA_ENV_NAME" >> ~/.bashrc
 SHELL ["/bin/bash", "--login", "-c"]
 
-ENV PATH ~/.conda/envs/$ENVNAME/bin:$PATH
+ENV PATH ~/.conda/envs/$CONDA_ENV_NAME/bin:$PATH
 
 RUN source /home/$USERNAME/.bashrc \
- && conda create -q --name $ENVNAME \
- && conda activate $ENVNAME \
+ && conda create -q --name $CONDA_ENV_NAME \
+ && conda activate $CONDA_ENV_NAME \
  && conda install -y -c conda-forge ortools-python ipython \
       pandas xlrd xlwt pytables \
       pre-commit black xlsxwriter \
  && conda install -y -c anaconda openpyxl
 
-RUN conda activate $ENVNAME \
+RUN conda activate $CONDA_ENV_NAME \
  && conda install -c conda-forge scipy
 
 ENV CONDA_ENV /opt/conda/envs/ortools/bin/

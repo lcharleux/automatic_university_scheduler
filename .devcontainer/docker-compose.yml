@@ -1,0 +1,16 @@
+version: "3.9"
+services:
+  ortools:
+    env_file: .env
+    build:
+      args:
+        - USERNAME=${USERNAME}
+        - USER_UID=${USER_UID}
+        - USER_GID=${USER_GID}
+        - CONDA_ENV_NAME=${CONDA_ENV_NAME}
+      context: .
+      dockerfile: Dockerfile
+    image: ortools:${TAG}
+    stdin_open: true
+    volumes:
+      - ..:/${MODULE_NAME}

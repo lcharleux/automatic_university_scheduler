@@ -1,11 +1,24 @@
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
 // https://github.com/microsoft/vscode-dev-containers/tree/v0.238.0/containers/python-3-miniconda
 {
+	"initializeCommand": "cd $(pwd)/.devcontainer && make update-env-vars",
 	"name": "OR-Tools",
-	"build": {
-		"context": "..",
-		"dockerfile": "Dockerfile",
-	},
+	// "build": {
+	// 	"context": "..",
+	// 	"dockerfile": "Dockerfile",
+	// 	"args": {
+	// 	"MODULE_NAME":"ortools",
+	// 	"IMG_NAME":"ortools",
+	// 	"TAG":"0.2",
+	// 	"USERNAME":"${localEnv:USER}",
+	// 	"USER_UID":"${localEnv:USER_UID}",
+	// 	"USER_GID":"${localEnv:USER_GID}",
+	// 	"CONDA_ENV_NAME":"ortools"}
+	// },
+	"dockerComposeFile": "docker-compose.yml",
+	"service": "ortools",
+	"workspaceFolder": "/automatic_university_scheduler",
+	"shutdownAction": "stopCompose",
 	// Configure tool-specific properties.
 	"customizations": {
 		// Configure properties specific to VS Code.
@@ -25,7 +38,7 @@
 				"python.linting.pydocstylePath": "/usr/local/py-utils/bin/pydocstyle",
 				"python.linting.pylintPath": "/usr/local/py-utils/bin/pylint",
 				"terminal.integrated.defaultProfile.linux": "bash (container default)",
-				"terminal.integrated.shell.linux": "bash",
+				"terminal.integrated.shell.linux": "/bin/bash",
 				"terminal.integrated.profiles.linux": {
 					"bash (container default)": {
 						"path": "/bin/bash",
@@ -41,7 +54,8 @@
 			]
 		}
 	},
-	"postCreateCommand": "ps -p $$ && echo '----------------' && /bin/bash .devcontainer/postCommand.sh"
+	// "postCreateCommand": "/bin/bash postCommand.sh",
+	"postCreateCommand": "ps -p $$ && echo '----------------' && cd /automatic_university_scheduler && /bin/bash .devcontainer/postCommand.sh"
 
 	//"postAttachCommand": "/bin/bash"
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
@@ -49,5 +63,5 @@
 	// Use 'postCreateCommand' to run commands after the container is created.
 	// "postCreateCommand": "python --version",
 	// Comment out to connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
-	//"remoteUser": "vscode"
+
 }
