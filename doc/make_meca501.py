@@ -16,7 +16,14 @@ TD_blocks = [
 ]
 CM_rooms = ["Room_amphi_1", "Room_amphi_2"]
 CC_rooms = ["Room_amphi_1", "Room_amphi_2"]
-TD_rooms = ["TD_Room_1", "TD_Room_2", "TD_Room_3", "TD_Room_4", "TD_Room_5"]
+TD_rooms = [
+    "TD_Room_1",
+    "TD_Room_2",
+    "TD_Room_3",
+    "TD_Room_4",
+    "TD_Room_5",
+    "TD_Room_6",
+]
 last_act = None
 students = "CM_TC"
 
