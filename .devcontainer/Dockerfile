@@ -10,6 +10,7 @@ ARG USERNAME
 ARG USER_UID
 ARG USER_GID
 ARG CONDA_ENV_NAME
+ARG CONTAINER_REPO_PATH
 
 #Check args reception
 RUN echo "Creation" \
@@ -24,6 +25,8 @@ RUN echo "Creation" \
 ENV USERNAME=${USERNAME}
 ENV USER_GID=${USER_GID}
 ENV USER_UID=${USER_UID}
+ENV CONDA_ENV /opt/conda/envs/ortools/bin/
+ENV CONTAINER_REPO_PATH $CONTAINER_REPO_PATH
 
 # USER CREATION
 
@@ -35,6 +38,11 @@ RUN groupadd --gid $USER_GID $USERNAME \
     && apt-get install -y sudo \
     && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
     && chmod 0440 /etc/sudoers.d/$USERNAME
+
+# HTOP
+RUN apt install -y htop
+
+RUN cd / && mkdir python_packages
 
 # Log as $USER and create a .bashrc file for config
 USER ${USER_UID}:${USER_GID}
@@ -49,7 +57,7 @@ RUN locale-gen en_US.UTF-8
 RUN sudo localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8
 
 # Add possibility to write in /opt
-RUN sudo chown -R $USER_UID:$USER_GID /opt/conda/
+#RUN sudo chown -R $USER_UID:$USER_GID /opt/conda/
 
 RUN touch ~/.bashrc
 RUN sudo mkdir /opt/conda/pkgs
@@ -64,13 +72,14 @@ ENV PATH=$CONDA_DIR/bin:$PATH
 RUN conda create --name $CONDA_ENV_NAME
 #RUN echo "conda activate $CONDA_ENV_NAME" >> ~/.bashrc
 RUN echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc && \
-    echo "conda activate $CONDA_ENV_NAME" >> ~/.bashrc
+    echo "conda activate $CONDA_ENV_NAME" >> ~/.bashrc && \
+    echo "export PYTHONPATH=\$PYTHONPATH:/python_packages/" >> ~/.bashrc
+
 SHELL ["/bin/bash", "--login", "-c"]
 
 ENV PATH ~/.conda/envs/$CONDA_ENV_NAME/bin:$PATH
 
 RUN source /home/$USERNAME/.bashrc \
- && conda create -q --name $CONDA_ENV_NAME \
  && conda activate $CONDA_ENV_NAME \
  && conda install -y -c conda-forge ortools-python ipython \
       pandas xlrd xlwt pytables \
@@ -80,8 +89,8 @@ RUN source /home/$USERNAME/.bashrc \
 RUN conda activate $CONDA_ENV_NAME \
  && conda install -c conda-forge scipy
 
-ENV CONDA_ENV /opt/conda/envs/ortools/bin/
+
 
 SHELL ["/bin/bash", "--login", "-c"]
 RUN /bin/bash ~/.bashrc
-ENTRYPOINT ["/bin/bash"]
+#ENTRYPOINT ["/bin/bash"]

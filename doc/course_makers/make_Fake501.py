@@ -1,14 +1,14 @@
 import json
 import copy
 
-# INFO501
+# FAKE501
 
 
-from scheduling import Activity, Course
+from automatic_university_scheduler.scheduling import Activity, Course
 
 n_TD = 14
-course_label = "Info501"
-course = Course(label=course_label, color="blue")
+course_label = "Fake501"
+course = Course(label=course_label, color="green")
 TD_blocks = [
     ("TDA", "Teacher_Lau"),
     ("TDB", "Teacher_YY"),
@@ -18,18 +18,18 @@ TD_blocks = [
     ("TDG", "Teacher_YY"),
 ]
 TP_blocks = [
-    ("TDA1", "Teacher_Lau"),
-    ("TDA2", "Teacher_MP"),
-    ("TDB1", "Teacher_MP"),
-    ("TDB2", "Teacher_YY"),
-    ("TDC1", "Teacher_XX"),
-    ("TDC2", "Teacher_KS"),
-    ("TDD1", "Teacher_LauCha"),
-    ("TDD2", "Teacher_YY"),
-    ("TDE1", "Teacher_YY"),
-    ("TDE2", "Teacher_LauCha"),
-    ("TDG1", "Teacher_EmAm"),
-    ("TDG2", "Teacher_YY"),
+    ("TPA1", "Teacher_LauFake"),
+    ("TPA2", "Teacher_MPFake"),
+    ("TPB1", "Teacher_MPFake"),
+    ("TPB2", "Teacher_YYFake"),
+    ("TPC1", "Teacher_XXFake"),
+    ("TPC2", "Teacher_KSFake"),
+    ("TPD1", "Teacher_LauChaFake"),
+    ("TPD2", "Teacher_YYFake"),
+    ("TPE1", "Teacher_YYFake"),
+    ("TPE2", "Teacher_LauChaFake"),
+    ("TPG1", "Teacher_EmAmFake"),
+    ("TPG2", "Teacher_YYFake"),
 ]
 CM_rooms = ["Room_amphi_1", "Room_amphi_2"]
 CC_rooms = ["Room_amphi_1", "Room_amphi_2"]
@@ -43,12 +43,12 @@ def make_CC(
     after=None,
     min_offset=0,
     add_to=None,
-    teachers=["Teacher_Lau"],
+    teachers=["Teacher_LauFake"],
     rooms=["Room_amphi_1", "Room_amphi_2"],
 ):
     students = "CM_TC"
     label = f"{course_label}_{students}_CC{index}"
-    activity = Activity(label=label, students="CM_TC", kind="EX")
+    activity = Activity(label=label, students="CM_TC", kind="EX", duration=6)
     activity.add_ressources(kind="teachers", quantity=1, pool=teachers)
     activity.add_ressources(kind="rooms", quantity=2, pool=CM_rooms)
     if after != None:
@@ -69,7 +69,7 @@ def make_CM(
 ):
     students = "CM_TC"
     label = f"{course_label}_{students}_CM{index}"
-    activity = Activity(label=label, students="CM_TC", kind="CM")
+    activity = Activity(label=label, students="CM_TC", kind="CM", duration=6)
     activity.add_ressources(kind="teachers", quantity=1, pool=teachers)
     activity.add_ressources(kind="rooms", quantity=1, pool=CM_rooms)
     if after != None:
@@ -84,7 +84,7 @@ def make_TD(TD_blocks, index=1, after=None, min_offset=0, add_to=None):
     activities = []
     for students, teacher in TD_blocks:
         activity = Activity(
-            label=f"{course_label}_{students}_TD{index}", students=students
+            label=f"{course_label}_{students}_TD{index}", students=students, duration=6
         )
         activity.add_ressources(kind="teachers", quantity=1, pool=[teacher])
         activity.add_ressources(kind="rooms", quantity=1, pool=TD_rooms)
@@ -105,7 +105,7 @@ def make_TP(TP_blocks, index=1, after=None, min_offset=0, add_to=None):
             label=f"{course_label}_{students}_TP{index}",
             students=students,
             kind="TP",
-            duration=3,
+            duration=16,
         )
         activity.add_ressources(kind="teachers", quantity=1, pool=[teacher])
         activity.add_ressources(kind="rooms", quantity=1, pool=TD_rooms)
@@ -156,6 +156,6 @@ TP4s = make_TP(TD_blocks, index=4, after=TP3s, min_offset=0, add_to=course)
 
 CC2 = make_CC(index=2, after=TD6s + TP4s, add_to=course)
 
-path = f"activity_data/{course_label}.json"
+path = f"../activity_data/{course_label}.json"
 with open(path, "w") as f:
     json.dump(course.to_dict(), f)

@@ -48,6 +48,8 @@ class Activity:
         students=None,
         after=None,
         parent=None,
+        min_start_slot=None,
+        max_start_slot=None,
     ):
         self.label = label
         self.kind = kind
@@ -59,6 +61,8 @@ class Activity:
         self.parent = parent
         if parent != None:
             parent.add_activity(self)
+        self.min_start_slot = min_start_slot
+        self.max_start_slot = max_start_slot
 
     def add_ressources(self, pool, kind="teachers", quantity=1):
         if kind == "teachers":
@@ -104,6 +108,8 @@ class Activity:
             "rooms": self.rooms,
             "after": self.after,
             "students": self.students,
+            "min_start_slot": self.min_start_slot,
+            "max_start_slot": self.max_start_slot,
         }
         return out
 
@@ -173,7 +179,7 @@ def create_unavailable_constraints(
     data={},
     prefix="Unavailable",
     start_day=datetime.date.fromisocalendar(2022, 1, 1),
-    horizon=70,
+    horizon=672,
 ):
     """
     Unavailable constraints.
@@ -186,18 +192,18 @@ def create_unavailable_constraints(
                     from_year = ldata["from_year"]
                     from_week = ldata["from_week"]
                     from_weekday = ldata["from_weekday"]
-                    from_dayslot = ldata["from_dayshift"]
+                    from_dayslot = ldata["from_dayslot"]
                     to_year = ldata["to_year"]
                     to_week = ldata["to_week"]
                     to_weekday = ldata["to_weekday"]
-                    to_dayslot = ldata["to_dayshift"]
+                    to_dayslot = ldata["to_dayslot"]
                     from_slot = isocalendar_to_slot(
                         year=from_year,
                         week=from_week,
                         weekday=from_weekday,
                         dayslot=from_dayslot,
                         start_date=start_day,
-                        slots_per_day=10,
+                        slots_per_day=96,
                     )
                     to_slot = isocalendar_to_slot(
                         year=to_year,
@@ -205,12 +211,12 @@ def create_unavailable_constraints(
                         weekday=to_weekday,
                         dayslot=to_dayslot,
                         start_date=start_day,
-                        slots_per_day=10,
+                        slots_per_day=96,
                     )
 
                 if "repeat" not in ldata.keys():
                     repeat = 1
-                    repeat_pad = 70
+                    repeat_pad = 672
                 else:
                     repeat = ldata["repeat"]
                     repeat_pad = ldata["repeat_pad"]
@@ -243,7 +249,7 @@ def isocalendar_to_slot(
     weekday=1,
     dayslot=0,
     start_date=datetime.date.fromisocalendar(2022, 1, 1),
-    slots_per_day=10,
+    slots_per_day=96,
 ):
     date = datetime.date.fromisocalendar(year, week, weekday)
     delta_days = (date - start_date).days
@@ -261,7 +267,7 @@ def create_weekly_unavailable_intervals(model, week_structure, max_weeks):
     inside = False
     week_unavailable_intervals_start_end = []
     for islot in range(len(flat_week_structure)):
-        # day_shift = TIME_SLOTS_PER_WEEK * week + TIME_SLOTS_PER_DAY * day
+        # day_slot = TIME_SLOTS_PER_WEEK * week + TIME_SLOTS_PER_DAY * day
         slot = flat_week_structure[islot]
         # print(f"islot={islot}, slot={slot}")
         if slot == 0:
@@ -275,7 +281,7 @@ def create_weekly_unavailable_intervals(model, week_structure, max_weeks):
         else:
             if inside:
                 end = islot
-                # print(f"found shift {start}->{end}, day={start//10}")
+                # print(f"found slot {start}->{end}, day={start//10}")
                 week_unavailable_intervals_start_end.append((start, end))
                 inside = False
                 start = 0
@@ -390,6 +396,7 @@ def create_activities(
     teacher_intervals = {t: [] for t in unique_teachers}
     room_intervals = {r: [] for r in unique_rooms}
     students_intervals = {s: [] for s in atomic_students_groups}
+    students_lunch_intervals = {s: [] for s in atomic_students_groups}
     atomic_students_unavailable_intervals = {}
     for group, intervals in students_unavailable_intervals.items():
         agroups = students_groups[group]
@@ -462,7 +469,11 @@ def create_activities(
                     room_intervals[room].append(alt_interval)
                 # STUDENTS INTERVALS
                 for g in sgroups:
-                    students_intervals[g].append(alt_interval)
+                    if activity["kind"] == "lunch":
+                        students_lunch_intervals[g].append(alt_interval)
+                    else:
+                        students_intervals[g].append(alt_interval)
+
                 alt_act_data["start"] = alt_start
                 alt_act_data["end"] = alt_end
                 alt_act_data["presence"] = alt_presence
@@ -492,17 +503,48 @@ def create_activities(
                             max_offset = after_data["max_offset"]
                             if max_offset >= 0:
                                 model.Add(start <= previous_end + max_offset)
-            if activity["kind"] in ["TD", "CM"]:
-                start_m10 = model.NewIntVar(0, horizon, f"start_mod_10_{alabel}")
-                model.AddModuloEquality(start_m10, start, 10)
-                model.Add(start_m10 != 2)
+            if "min_start_slot" in activity.keys():
+                if activity["min_start_slot"] != None:
+                    model.Add(start >= activity["min_start_slot"])
+            if "max_start_slot" in activity.keys():
+                if activity["max_start_slot"] != None:
+                    model.Add(start <= activity["max_start_slot"])
+            # ALLOWED CM AND TD START SLOTS: TO IMPROVE
+            if activity["kind"] in ["TD", "CM", "EX"]:
+                start_m96 = model.NewIntVar(0, horizon, f"start_mod_96_{alabel}")
+                model.AddModuloEquality(start_m96, start, 96)
+                cm_td_allowed_slots = [32, 39, 46, 53, 60, 67]
+                all_slots = np.arange(96)
+                cm_td_forbidden_slots = list(set(all_slots) - set(cm_td_allowed_slots))
+                for forbidden_slot in cm_td_forbidden_slots:
+                    model.Add(start_m96 != forbidden_slot)
+
+            # ALLOWED TP START SLOTS: TO IMPROVE
+            if activity["kind"] in ["TP"]:
+                start_m96 = model.NewIntVar(0, horizon, f"start_mod_96_{alabel}")
+                model.AddModuloEquality(start_m96, start, 96)
+                tp_allowed_slots = [32, 53, 57]
+                all_slots = np.arange(96)
+                tp_forbidden_slots = list(set(all_slots) - set(tp_allowed_slots))
+                for forbidden_slot in tp_forbidden_slots:
+                    model.Add(start_m96 != forbidden_slot)
+
+            # ALLOWED LUNCH START SLOTS: TO IMPROVE
+            if activity["kind"] in ["lunch"]:
+                start_m96 = model.NewIntVar(0, horizon, f"start_mod_96_{alabel}")
+                model.AddModuloEquality(start_m96, start, 96)
+                lunch_allowed_slots = [46, 47, 48, 49, 50, 51, 52, 53]
+                all_slots = np.arange(96)
+                lunch_forbidden_slots = list(set(all_slots) - set(lunch_allowed_slots))
+                for forbidden_slot in lunch_forbidden_slots:
+                    model.Add(start_m96 != forbidden_slot)
 
             if "forbidden_weekdays" in activity.keys():
                 forbidden_days = activity["forbidden_weekdays"]
                 weeksstart = model.NewIntVar(0, horizon, f"weekstart_{alabel}")
-                model.AddModuloEquality(weeksstart, start, 70)
+                model.AddModuloEquality(weeksstart, start, 672)
                 weekday = model.NewIntVar(0, horizon, f"weekday_{alabel}")
-                model.AddDivisionEquality(weekday, weeksstart, 10)
+                model.AddDivisionEquality(weekday, weeksstart, 96)
                 for fb in forbidden_days:
                     model.Add(weekday != fb - 1)
 
@@ -524,6 +566,11 @@ def create_activities(
             all_intervals = intervals + atomic_students_unavailable_intervals[student]
             model.AddNoOverlap(all_intervals)
 
+    for student, intervals in students_intervals.items():
+        if len(intervals) > 1:
+            all_intervals = intervals + students_lunch_intervals[student]
+            model.AddNoOverlap(all_intervals)
+
     for room, intervals in room_intervals.items():
         if len(intervals) > 1:
             if room in room_unavailable_intervals:
@@ -541,7 +588,7 @@ def export_student_schedule_to_xlsx(
     writer = pd.ExcelWriter(xlsx_path, engine="xlsxwriter")
     workbook = writer.book
     merge_format = workbook.add_format(
-        {"align": "center", "valign": "vcenter", "border": 2}
+        {"align": "center", "valign": "vcenter", "border": 2, "font_size": 15}
     )
     N_unique_groups = len(atomic_students_groups)
     slots_df = pd.DataFrame({("Slot"): np.arange(time_slots_per_day)})
@@ -560,6 +607,7 @@ def export_student_schedule_to_xlsx(
         slots_df.to_excel(writer, sheet_name=f"Week_{week}", index=False, startrow=1)
         worksheet = writer.sheets[f"Week_{week}"]
         worksheet.set_default_row(row_height)
+        worksheet.set_row(0, slots_df.shape[1], merge_format)
         worksheet.set_column(
             1, len(atomic_students_groups) * days_per_week + 1, column_width
         )  #
@@ -593,6 +641,7 @@ def export_student_schedule_to_xlsx(
                     "border": 2,
                     "bg_color": activity["color"],
                     "color": "white",
+                    "font_size": 15,
                 }
             )
             grid *= 0

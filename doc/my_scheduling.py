@@ -1,5 +1,4 @@
 import datetime
-from pickletools import StackObject
 from ortools.sat.python import cp_model
 import numpy as np
 from collections import OrderedDict
@@ -10,7 +9,7 @@ from scipy import ndimage
 import json
 import os
 import time
-from scheduling import (
+from automatic_university_scheduler.scheduling import (
     read_json_data,
     get_unique_teachers_and_rooms,
     create_unavailable_constraints,
@@ -25,20 +24,46 @@ from scheduling import (
 
 
 # SETUP
+# WEEK_STRUCTURE = np.array(
+#     [
+#         [1, 1, 1, 0, 1, 1, 1, 0, 0, 0],  # MONDAY
+#         [1, 1, 1, 0, 1, 1, 1, 0, 0, 0],  # TUESDAY
+#         [1, 1, 1, 0, 1, 1, 1, 0, 0, 0],  # WEDNESDAY
+#         [1, 1, 1, 0, 0, 0, 0, 0, 0, 0],  # THURSDAY
+#         [1, 1, 1, 0, 1, 1, 1, 0, 0, 0],  # FRIDAY
+#         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # SATRUDAY
+#         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # SUNDAY
+#     ]
+# )
 WEEK_STRUCTURE = np.array(
+    # 0h   1h   2h   3h   4h   5h   6h   7h   8h   9h   10h  11h  12h  13h  14h  15h  16h  17h  18h  19h  20h  21h  22h  23h
     [
-        [1, 1, 1, 0, 1, 1, 1, 0, 0, 0],  # MONDAY
-        [1, 1, 1, 0, 1, 1, 1, 0, 0, 0],  # TUESDAY
-        [1, 1, 1, 0, 1, 1, 1, 0, 0, 0],  # WEDNESDAY
-        [1, 1, 1, 0, 0, 0, 0, 0, 0, 0],  # THURSDAY
-        [1, 1, 1, 0, 1, 1, 1, 0, 0, 0],  # FRIDAY
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # SATRUDAY
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # SUNDAY
+        "0000 0000 0000 0000 0000 0000 0000 0000 1111 1111 1111 1111 0000 1111 1111 1111 1111 1111 1111 0000 0000 0000 0000 0000",  # MONDAY
+        "0000 0000 0000 0000 0000 0000 0000 0000 1111 1111 1111 1111 1111 0000 1111 1111 1111 1111 1111 0000 0000 0000 0000 0000",  # TUESDAY
+        "0000 0000 0000 0000 0000 0000 0000 0000 1111 1111 1111 1111 0000 1111 1111 1111 1111 1111 1111 0000 0000 0000 0000 0000",  # WEDNESDAY
+        "0000 0000 0000 0000 0000 0000 0000 0000 1111 1111 1111 1111 1111 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000",  # THURSDAY
+        "0000 0000 0000 0000 0000 0000 0000 0000 1111 1111 1111 1111 0000 1111 1111 1111 1111 1111 1111 0000 0000 0000 0000 0000",  # FRIDAY
+        "0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000",  # SATRUDAY
+        "0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000",  # SUNDAY
     ]
 )
+# WEEK_STRUCTURE = np.array(
+#     # 0h   1h   2h   3h   4h   5h   6h   7h   8h   9h   10h  11h  12h  13h  14h  15h  16h  17h  18h  19h  20h  21h  22h  23h
+#     ["0000 0000 0000 0000 0000 0000 0000 0000 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 0000 0000 0000 0000 0000", # MONDAY
+#      "0000 0000 0000 0000 0000 0000 0000 0000 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 0000 0000 0000 0000 0000", # TUESDAY
+#      "0000 0000 0000 0000 0000 0000 0000 0000 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 0000 0000 0000 0000 0000", # WEDNESDAY
+#      "0000 0000 0000 0000 0000 0000 0000 0000 1111 1111 1111 1111 1111 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000", # THURSDAY
+#      "0000 0000 0000 0000 0000 0000 0000 0000 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 0000 0000 0000 0000 0000", # FRIDAY
+#      "0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000",  # SATRUDAY
+#      "0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000",  # SUNDAY
+#     ]
+# )
+WEEK_STRUCTURE = np.array(
+    [list(day.replace(" ", "")) for day in WEEK_STRUCTURE]
+).astype(int)
 
 DAYS_PER_WEEK, TIME_SLOTS_PER_DAY = WEEK_STRUCTURE.shape
-MAX_WEEKS = 20
+MAX_WEEKS = 40
 TIME_SLOTS_PER_WEEK = TIME_SLOTS_PER_DAY * DAYS_PER_WEEK
 horizon = MAX_WEEKS * TIME_SLOTS_PER_WEEK
 START_DAY = datetime.date.fromisocalendar(2022, 36, 1)
@@ -96,8 +121,8 @@ students_groups = {
     "TPD2": ["TPD2"],
     "TPE1": ["TPE1"],
     "TPE2": ["TPE2"],
-    "TPG2": ["TPE2"],
-    "TPG2": ["TPE2"],
+    "TPG1": ["TPG1"],
+    "TPG2": ["TPG2"],
     "TDA+B": ["TPA1", "TPA2", "TPB1", "TPB2"],
 }
 
@@ -138,7 +163,8 @@ create_activities(
 activities_ends = []
 for file, module in activity_data.items():
     for label, activity in module["activities"].items():
-        activities_ends.append(activity["model"]["end"])
+        if activity["kind"] != "lunch":
+            activities_ends.append(activity["model"]["end"])
 
 makespan = model.NewIntVar(0, horizon, "makespan")
 model.AddMaxEquality(makespan, activities_ends)
@@ -146,7 +172,7 @@ model.Minimize(makespan)
 
 # Solve model.
 solver = cp_model.CpSolver()
-solver.parameters.max_time_in_seconds = 40.0
+solver.parameters.max_time_in_seconds = 80.0
 
 
 solution_printer = SolutionPrinter(limit=100)
@@ -172,6 +198,6 @@ export_student_schedule_to_xlsx(
     solution,
     students_groups,
     week_structure=WEEK_STRUCTURE,
-    row_height=50,
+    row_height=15,
     column_width=25,
 )

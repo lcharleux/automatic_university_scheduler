@@ -4,7 +4,7 @@
         "activities": {
             "SPORT_TDA1": {
                 "kind": "TP",
-                "duration": 3,
+                "duration": 12,
                 "teachers": [
                     [
                         1,
@@ -30,7 +30,7 @@
             },
             "SPORT_TDA2": {
                 "kind": "TP",
-                "duration": 3,
+                "duration": 12,
                 "teachers": [
                     [
                         1,
@@ -63,7 +63,7 @@
             },
             "SPORT_TDA3": {
                 "kind": "TP",
-                "duration": 3,
+                "duration": 12,
                 "teachers": [
                     [
                         1,
@@ -96,7 +96,7 @@
             },
             "SPORT_TDB1": {
                 "kind": "TP",
-                "duration": 3,
+                "duration": 12,
                 "teachers": [
                     [
                         1,
@@ -122,7 +122,7 @@
             },
             "SPORT_TDB2": {
                 "kind": "TP",
-                "duration": 3,
+                "duration": 12,
                 "teachers": [
                     [
                         1,
@@ -155,7 +155,7 @@
             },
             "SPORT_TDB3": {
                 "kind": "TP",
-                "duration": 3,
+                "duration": 12,
                 "teachers": [
                     [
                         1,
@@ -188,7 +188,7 @@
             },
             "SPORT_TDC1": {
                 "kind": "TP",
-                "duration": 3,
+                "duration": 12,
                 "teachers": [
                     [
                         1,
@@ -214,7 +214,7 @@
             },
             "SPORT_TDC2": {
                 "kind": "TP",
-                "duration": 3,
+                "duration": 12,
                 "teachers": [
                     [
                         1,
@@ -247,7 +247,7 @@
             },
             "SPORT_TDC3": {
                 "kind": "TP",
-                "duration": 3,
+                "duration": 12,
                 "teachers": [
                     [
                         1,
@@ -280,7 +280,7 @@
             },
             "SPORT_TDD1": {
                 "kind": "TP",
-                "duration": 3,
+                "duration": 12,
                 "teachers": [
                     [
                         1,
@@ -301,7 +301,7 @@
             },
             "SPORT_TDD2": {
                 "kind": "TP",
-                "duration": 3,
+                "duration": 12,
                 "teachers": [
                     [
                         1,
@@ -334,7 +334,7 @@
             },
             "SPORT_TDD3": {
                 "kind": "TP",
-                "duration": 3,
+                "duration": 12,
                 "teachers": [
                     [
                         1,

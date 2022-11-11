@@ -1,6 +1,5 @@
-from asyncore import read
 from itertools import combinations, product
-from scheduling import read_json_data
+from automatic_university_scheduling.scheduling import read_json_data
 
 activities = read_json_data("./activity_data/")
 activity = activities["COMMUNICATION"]["activities"]["COM_TDA5"]

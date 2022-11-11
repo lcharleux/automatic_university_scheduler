@@ -8,9 +8,11 @@ services:
         - USER_UID=${USER_UID}
         - USER_GID=${USER_GID}
         - CONDA_ENV_NAME=${CONDA_ENV_NAME}
+        - CONTAINER_REPO_PATH=automatic_university_scheduler/
       context: .
       dockerfile: Dockerfile
     image: ortools:${TAG}
-    stdin_open: true
+    stdin_open: false
     volumes:
-      - ..:/${MODULE_NAME}
+      - ../..:/automatic_university_scheduler
+      - ../automatic_university_scheduler:/python_packages/automatic_university_scheduler

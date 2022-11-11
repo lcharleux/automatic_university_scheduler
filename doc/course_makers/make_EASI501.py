@@ -1,14 +1,14 @@
 import json
 import copy
 
-# FAKE501
+# MATH501
 
 
-from scheduling import Activity, Course
+from automatic_university_scheduler.scheduling import Activity, Course
 
 n_TD = 14
-course_label = "Fake501"
-course = Course(label=course_label, color="green")
+course_label = "EASI501"
+course = Course(label=course_label, color="blue")
 TD_blocks = [
     ("TDA", "Teacher_Lau"),
     ("TDB", "Teacher_YY"),
@@ -18,22 +18,29 @@ TD_blocks = [
     ("TDG", "Teacher_YY"),
 ]
 TP_blocks = [
-    ("TDA1", "Teacher_LauFake"),
-    ("TDA2", "Teacher_MPFake"),
-    ("TDB1", "Teacher_MPFake"),
-    ("TDB2", "Teacher_YYFake"),
-    ("TDC1", "Teacher_XXFake"),
-    ("TDC2", "Teacher_KSFake"),
-    ("TDD1", "Teacher_LauChaFake"),
-    ("TDD2", "Teacher_YYFake"),
-    ("TDE1", "Teacher_YYFake"),
-    ("TDE2", "Teacher_LauChaFake"),
-    ("TDG1", "Teacher_EmAmFake"),
-    ("TDG2", "Teacher_YYFake"),
+    ("TPA1", "Teacher_FLep"),
+    ("TPA2", "Teacher_FLep"),
+    ("TPB1", "Teacher_CHern"),
+    ("TPB2", "Teacher_LMarech"),
+    ("TPC1", "Teacher_CHern"),
+    ("TPC2", "Teacher_MPass"),
+    ("TPD1", "Teacher_FLep"),
+    ("TPD2", "Teacher_MPass"),
+    ("TPE1", "Teacher_MPass"),
+    ("TPE2", "Teacher_FLep"),
+    ("TPG1", "Teacher_FLep"),
+    ("TPG2", "Teacher_FLep"),
 ]
 CM_rooms = ["Room_amphi_1", "Room_amphi_2"]
 CC_rooms = ["Room_amphi_1", "Room_amphi_2"]
-TD_rooms = ["C213", "C214", "C215"]
+TD_rooms = [
+    "TD_Room_1",
+    "TD_Room_2",
+    "TD_Room_3",
+    "TD_Room_4",
+    "TD_Room_5",
+    "TD_Room_6",
+]
 last_act = None
 students = "CM_TC"
 
@@ -43,7 +50,7 @@ def make_CC(
     after=None,
     min_offset=0,
     add_to=None,
-    teachers=["Teacher_LauFake"],
+    teachers=["Teacher_Flep"],
     rooms=["Room_amphi_1", "Room_amphi_2"],
 ):
     students = "CM_TC"
@@ -64,12 +71,12 @@ def make_CM(
     after=None,
     min_offset=0,
     add_to=None,
-    teachers=["Teacher_Lau"],
+    teachers=["Teacher_FLep"],
     rooms=["Room_amphi_1", "Room_amphi_2"],
 ):
     students = "CM_TC"
     label = f"{course_label}_{students}_CM{index}"
-    activity = Activity(label=label, students="CM_TC", kind="CM")
+    activity = Activity(label=label, students="CM_TC", kind="CM", duration=6)
     activity.add_ressources(kind="teachers", quantity=1, pool=teachers)
     activity.add_ressources(kind="rooms", quantity=1, pool=CM_rooms)
     if after != None:
@@ -84,7 +91,7 @@ def make_TD(TD_blocks, index=1, after=None, min_offset=0, add_to=None):
     activities = []
     for students, teacher in TD_blocks:
         activity = Activity(
-            label=f"{course_label}_{students}_TD{index}", students=students
+            label=f"{course_label}_{students}_TD{index}", students=students, duration=6
         )
         activity.add_ressources(kind="teachers", quantity=1, pool=[teacher])
         activity.add_ressources(kind="rooms", quantity=1, pool=TD_rooms)
@@ -105,10 +112,15 @@ def make_TP(TP_blocks, index=1, after=None, min_offset=0, add_to=None):
             label=f"{course_label}_{students}_TP{index}",
             students=students,
             kind="TP",
-            duration=3,
+            duration=16,
         )
+        if index == 1:
+            TP_rooms = ["C121"]
+        else:
+            TP_rooms = ["A202"]
+
         activity.add_ressources(kind="teachers", quantity=1, pool=[teacher])
-        activity.add_ressources(kind="rooms", quantity=1, pool=TD_rooms)
+        activity.add_ressources(kind="rooms", quantity=1, pool=TP_rooms)
         if after != None:
             for other in after:
                 activity.add_after(other, min_offset=min_offset)
@@ -118,14 +130,6 @@ def make_TP(TP_blocks, index=1, after=None, min_offset=0, add_to=None):
         activities.append(activity)
     return activities
 
-
-"""CC1 = make_CC(index=1, add_to=course)
-for students in ["TDAB", "TDD", "TDG"]:
-    CC1.add_after_manual(
-        parent_label="Math500",
-        activity_label=f"Math500_{students}_14",
-        min_offset=10,
-    )"""
 
 CM1 = make_CM(index=1, add_to=course)
 CM2 = make_CM(index=2, after=[CM1], add_to=course)
@@ -142,20 +146,21 @@ TD4s = make_TD(TD_blocks, index=4, after=[CM6], min_offset=0, add_to=course)
 CM7 = make_CM(index=7, after=TD4s, add_to=course)
 
 TD5s = make_TD(TD_blocks, index=5, after=[CM7], min_offset=0, add_to=course)
-CM8 = make_CM(index=8, after=TD5s, add_to=course)
-TD6s = make_TD(TD_blocks, index=6, after=[CM8], min_offset=0, add_to=course)
+# CM8 = make_CM(index=8, after=TD5s, add_to=course)
 
-CM9 = make_CM(index=9, after=TD6s, add_to=course)
-CC1 = make_CC(index=1, after=[CM9], add_to=course)
 
-TD7s = make_TD(TD_blocks, index=7, after=[CC1], min_offset=0, add_to=course)
-TP1s = make_TP(TD_blocks, index=1, after=TD4s, min_offset=0, add_to=course)
-TP2s = make_TP(TD_blocks, index=2, after=TP1s, min_offset=0, add_to=course)
-TP3s = make_TP(TD_blocks, index=3, after=TP2s, min_offset=0, add_to=course)
-TP4s = make_TP(TD_blocks, index=4, after=TP3s, min_offset=0, add_to=course)
+# CM9 = make_CM(index=9, after=TD6s, add_to=course)
+CC1 = make_CC(index=1, after=TD5s, add_to=course)
 
-CC2 = make_CC(index=2, after=TD6s + TP4s, add_to=course)
+TD6s = make_TD(TD_blocks, index=6, after=[CC1], min_offset=0, add_to=course)
+TD7s = make_TD(TD_blocks, index=7, after=TD6s, min_offset=0, add_to=course)
 
-path = f"activity_data/{course_label}.json"
+TP1s = make_TP(TP_blocks, index=1, after=TD3s, min_offset=0, add_to=course)
+TP2s = make_TP(TP_blocks, index=2, after=TP1s, min_offset=0, add_to=course)
+TP3s = make_TP(TP_blocks, index=3, after=TP2s, min_offset=0, add_to=course)
+
+CC2 = make_CC(index=2, after=TD6s + TP3s, add_to=course)
+
+path = f"../activity_data/{course_label}.json"
 with open(path, "w") as f:
     json.dump(course.to_dict(), f)

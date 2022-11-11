@@ -6,44 +6,44 @@
                 "from_year": 2022,
                 "from_week": 36,
                 "from_weekday": 1,
-                "from_dayshift": 0,
+                "from_dayslot": 0,
                 "to_year": 2022,
                 "to_week": 36,
                 "to_weekday": 2,
-                "to_dayshift": 0
+                "to_dayslot": 0
             },
             {
                 "kind": "isocalendar",
                 "from_year": 2022,
                 "from_week": 44,
                 "from_weekday": 1,
-                "from_dayshift": 0,
+                "from_dayslot": 0,
                 "to_year": 2022,
                 "to_week": 44,
                 "to_weekday": 7,
-                "to_dayshift": 9
+                "to_dayslot": 96
             },
             {
                 "kind": "isocalendar",
                 "from_year": 2022,
                 "from_week": 45,
                 "from_weekday": 5,
-                "from_dayshift": 0,
+                "from_dayslot": 0,
                 "to_year": 2022,
                 "to_week": 45,
                 "to_weekday": 5,
-                "to_dayshift": 9
+                "to_dayslot": 96
             },
             {
                 "kind": "isocalendar",
                 "from_year": 2022,
                 "from_week": 51,
                 "from_weekday": 1,
-                "from_dayshift": 0,
+                "from_dayslot": 0,
                 "to_year": 2022,
                 "to_week": 52,
                 "to_weekday": 7,
-                "to_dayshift": 9
+                "to_dayslot": 96
             }
         ]
     }

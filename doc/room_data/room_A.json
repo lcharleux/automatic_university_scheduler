@@ -6,12 +6,12 @@
                 "from_year": 2022,
                 "from_week": 36,
                 "from_weekday": 1,
-                "from_dayshift": 3,
+                "from_dayslot": 3,
                 "to_year": 2022,
                 "to_week": 36,
                 "to_weekday": 4,
-                "to_dayshift": 9,
-                "repeat_pad": 70,
+                "to_dayslot": 9,
+                "repeat_pad":672,
                 "repeat": 20
             },
             {
@@ -19,12 +19,12 @@
                 "from_year": 2022,
                 "from_week": 36,
                 "from_weekday": 5,
-                "from_dayshift": 3,
+                "from_dayslot": 3,
                 "to_year": 2022,
                 "to_week": 36,
                 "to_weekday": 5,
-                "to_dayshift": 9,
-                "repeat_pad": 70,
+                "to_dayslot": 9,
+                "repeat_pad": 672,
                 "repeat": 20
             }
         ]

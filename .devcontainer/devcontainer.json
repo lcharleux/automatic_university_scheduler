@@ -50,12 +50,19 @@
 			"extensions": [
 				"ms-python.python",
 				"ms-python.vscode-pylance",
-				"mechatroner.rainbow-csv"
+				"mechatroner.rainbow-csv",
+				"ms-azuretools.vscode-docker",
+				"ms-toolsai.jupyter",
+				"ms-toolsai.jupyter-keymap",
+				"ms-toolsai.jupyter-renderers",
+				"mhutchie.git-graph",
+				"donjayamanne.githistory",
+				"eamodio.gitlens"
 			]
 		}
 	},
 	// "postCreateCommand": "/bin/bash postCommand.sh",
-	"postCreateCommand": "ps -p $$ && echo '----------------' && cd /automatic_university_scheduler && /bin/bash .devcontainer/postCommand.sh"
+	"postCreateCommand": "ps -p $$ && echo '----------------' && cd ${CONTAINER_REPO_PATH} && /bin/bash .devcontainer/postCommand.sh"
 
 	//"postAttachCommand": "/bin/bash"
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.

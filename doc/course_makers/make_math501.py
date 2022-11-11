@@ -4,7 +4,7 @@ import copy
 # MATH501
 
 
-from scheduling import Activity, Course
+from automatic_university_scheduler.scheduling import Activity, Course
 
 n_TD = 14
 course_label = "Math501"
@@ -41,7 +41,7 @@ def make_CC(
 ):
     students = "CM_TC"
     label = f"{course_label}_{students}_CC{index}"
-    activity = Activity(label=label, students="CM_MM", kind="EX")
+    activity = Activity(label=label, students="CM_MM", kind="EX", duration=6)
     activity.add_ressources(kind="teachers", quantity=2, pool=teachers)
     activity.add_ressources(kind="rooms", quantity=2, pool=CM_rooms)
     if after != None:
@@ -62,7 +62,7 @@ def make_CM(
 ):
     students = "CM_TC"
     label = f"{course_label}_{students}_CM{index}"
-    activity = Activity(label=label, students="CM_MM", kind="CM")
+    activity = Activity(label=label, students="CM_MM", kind="CM", duration=6)
     activity.add_ressources(kind="teachers", quantity=1, pool=teachers)
     activity.add_ressources(kind="rooms", quantity=1, pool=CM_rooms)
     if after != None:
@@ -77,7 +77,7 @@ def make_TD(TD_blocks, index=1, after=None, min_offset=0, add_to=None):
     activities = []
     for students, teacher in TD_blocks:
         activity = Activity(
-            label=f"{course_label}_{students}_TD{index}", students=students
+            label=f"{course_label}_{students}_TD{index}", students=students, duration=6
         )
         activity.add_ressources(kind="teachers", quantity=1, pool=[teacher])
         activity.add_ressources(kind="rooms", quantity=1, pool=TD_rooms)
@@ -129,6 +129,6 @@ CM14 = make_CM(index=14, after=TD12s, add_to=course)
 TD13s = make_TD(TD_blocks, index=13, after=[CM14], min_offset=0, add_to=course)
 CC3 = make_CC(index=3, after=TD13s, add_to=course)
 
-path = f"activity_data/{course_label}.json"
+path = f"../activity_data/{course_label}.json"
 with open(path, "w") as f:
     json.dump(course.to_dict(), f)

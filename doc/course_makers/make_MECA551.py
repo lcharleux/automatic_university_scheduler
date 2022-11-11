@@ -4,7 +4,7 @@ import copy
 # MECA551
 
 
-from scheduling import Activity, Course
+from automatic_university_scheduler.scheduling import Activity, Course
 
 n_TD = 14
 course_label = "MECA551"
@@ -15,12 +15,12 @@ TD_blocks = [
     ("TDC", "Teacher_HFav"),
 ]
 TP_blocks = [
-    ("TDA1", "Teacher_HFav"),
-    ("TDA2", "Teacher_TAve"),
-    ("TDB1", "Teacher_HFav"),
-    ("TDB2", "Teacher_TAve"),
-    ("TDC1", "Teacher_Ater512"),
-    ("TDC2", "Teacher_TAve"),
+    ("TPA1", "Teacher_HFav"),
+    ("TPA2", "Teacher_TAve"),
+    ("TPB1", "Teacher_HFav"),
+    ("TPB2", "Teacher_TAve"),
+    ("TPC1", "Teacher_Ater512"),
+    ("TPC2", "Teacher_TAve"),
 ]
 TD_rooms = ["C213", "C214", "C215"]
 TD_rooms = ["C213", "C214", "C215", "C216", "C217"]
@@ -32,7 +32,7 @@ def make_TD(TD_blocks, index=1, after=None, min_offset=0, add_to=None):
     activities = []
     for students, teacher in TD_blocks:
         activity = Activity(
-            label=f"{course_label}_{students}_TD{index}", students=students
+            label=f"{course_label}_{students}_TD{index}", students=students, duration=6
         )
         activity.add_ressources(kind="teachers", quantity=1, pool=[teacher])
         activity.add_ressources(kind="rooms", quantity=1, pool=TD_rooms)
@@ -53,7 +53,7 @@ def make_TP(TP_blocks, index=1, after=None, min_offset=0, add_to=None):
             label=f"{course_label}_{students}_TP{index}",
             students=students,
             kind="TP",
-            duration=3,
+            duration=16,
         )
         activity.add_ressources(kind="teachers", quantity=1, pool=[teacher])
         activity.add_ressources(kind="rooms", quantity=1, pool=TD_rooms)
@@ -70,15 +70,15 @@ def make_TP(TP_blocks, index=1, after=None, min_offset=0, add_to=None):
 TD1s = make_TD(TD_blocks, index=1, after=None, min_offset=0, add_to=course)
 TD2s = make_TD(TD_blocks, index=2, after=TD1s, min_offset=0, add_to=course)
 TD3s = make_TD(TD_blocks, index=3, after=TD2s, min_offset=0, add_to=course)
-TP1s = make_TP(TD_blocks, index=1, after=TD2s, min_offset=0, add_to=course)
-TP2s = make_TP(TD_blocks, index=2, after=TP1s, min_offset=0, add_to=course)
-TP3s = make_TP(TD_blocks, index=3, after=TP2s, min_offset=0, add_to=course)
-TP4s = make_TP(TD_blocks, index=4, after=TP3s, min_offset=0, add_to=course)
-TP5s = make_TP(TD_blocks, index=5, after=TP4s, min_offset=0, add_to=course)
-TP6s = make_TP(TD_blocks, index=6, after=TP5s, min_offset=0, add_to=course)
-TP7s = make_TP(TD_blocks, index=7, after=TP6s, min_offset=0, add_to=course)
-TP8s = make_TP(TD_blocks, index=8, after=TP7s, min_offset=0, add_to=course)
-TP9s = make_TP(TD_blocks, index=9, after=TP8s, min_offset=0, add_to=course)
+TP1s = make_TP(TP_blocks, index=1, after=TD2s, min_offset=0, add_to=course)
+TP2s = make_TP(TP_blocks, index=2, after=TP1s, min_offset=0, add_to=course)
+TP3s = make_TP(TP_blocks, index=3, after=TP2s, min_offset=0, add_to=course)
+TP4s = make_TP(TP_blocks, index=4, after=TP3s, min_offset=0, add_to=course)
+TP5s = make_TP(TP_blocks, index=5, after=TP4s, min_offset=0, add_to=course)
+TP6s = make_TP(TP_blocks, index=6, after=TP5s, min_offset=0, add_to=course)
+TP7s = make_TP(TP_blocks, index=7, after=TP6s, min_offset=0, add_to=course)
+TP8s = make_TP(TP_blocks, index=8, after=TP7s, min_offset=0, add_to=course)
+TP9s = make_TP(TP_blocks, index=9, after=TP8s, min_offset=0, add_to=course)
 
 """
 TD4s = make_TD(TD_blocks, index=4, after=[CM6], min_offset=0, add_to=course)
@@ -99,6 +99,6 @@ TP4s = make_TP(TD_blocks, index=4, after=TP3s, min_offset=0, add_to=course)
 
 CC2 = make_CC(index=2, after=TD6s + TP4s, add_to=course)
 """
-path = f"activity_data/{course_label}.json"
+path = f"../activity_data/{course_label}.json"
 with open(path, "w") as f:
     json.dump(course.to_dict(), f)

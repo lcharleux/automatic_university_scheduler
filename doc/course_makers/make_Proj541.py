@@ -4,7 +4,7 @@ import copy
 # PROJ541
 
 
-from scheduling import Activity, Course
+from automatic_university_scheduler.scheduling import Activity, Course
 
 
 info_rooms = ["Room_C213", "Room_C214", "Room_C215", "Room_C216", "Room_C217"]
@@ -22,7 +22,7 @@ def make_TP8h(
     room_quantity=1,
 ):
     label = f"{course_label}_G-{students}_TP-{index}"
-    activity = Activity(kind="TP", label=label, students=students, duration=3)
+    activity = Activity(kind="TP", label=label, students=students, duration=16)
     activity.add_ressources(kind="teachers", quantity=1, pool=teachers)
     activity.add_ressources(kind="rooms", quantity=room_quantity, pool=rooms)
     if after != None:
@@ -52,8 +52,8 @@ for students in ["TPD1", "TPD2", "TPE1", "TPE2"]:
         students=students,
         rooms=["A117"],
         add_to=course,
-        min_offset=1,
-        max_offset=1,
+        min_offset=4,
+        max_offset=8,
         teachers=["Teacher_FV"],
         after=[TP1],
     )
@@ -71,8 +71,8 @@ for students in ["TPD1", "TPD2", "TPE1", "TPE2"]:
         students=students,
         rooms=["B206"],
         add_to=course,
-        min_offset=1,
-        max_offset=1,
+        min_offset=4,
+        max_offset=8,
         teachers=["Teacher_SM"],
         after=[TP3],
     )
@@ -90,8 +90,8 @@ for students in ["TPD1", "TPD2", "TPE1", "TPE2"]:
         students=students,
         rooms=["C121"],
         add_to=course,
-        min_offset=1,
-        max_offset=1,
+        min_offset=4,
+        max_offset=8,
         teachers=["Teacher_FL"],
         after=[TP5],
     )
@@ -109,8 +109,8 @@ for students in ["TPD1", "TPD2", "TPE1", "TPE2"]:
         students=students,
         rooms=info_rooms,
         add_to=course,
-        min_offset=1,
-        max_offset=1,
+        min_offset=4,
+        max_offset=8,
         teachers=["Teacher_YY"],
         after=[TP7],
     )
@@ -130,11 +130,11 @@ for students in ["TPD1", "TPD2", "TPE1", "TPE2"]:
         rooms=["C119", "C120"],
         room_quantity=2,
         add_to=course,
-        min_offset=1,
-        max_offset=1,
+        min_offset=4,
+        max_offset=8,
         teachers=["Teacher_PM"],
         after=[TP9],
     )
-path = f"activity_data/{course_label}.json"
+path = f"../activity_data/{course_label}.json"
 with open(path, "w") as f:
     json.dump(course.to_dict(), f)
