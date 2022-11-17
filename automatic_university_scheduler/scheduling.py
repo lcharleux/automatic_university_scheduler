@@ -82,6 +82,11 @@ class Activity:
             self.after[other.parent.label][other.label] = out
         return self
 
+    def add_multiple_after(self, others, *args, **kwargs):
+        for other in others:
+            self.add_after(other, *args, **kwargs)
+        return self
+
     def add_after_manual(
         self, parent_label, activity_label, min_offset=0, max_offset=None
     ):
@@ -178,8 +183,8 @@ def create_unavailable_constraints(
     model,
     data={},
     prefix="Unavailable",
-    start_day=datetime.date.fromisocalendar(2022, 1, 1),
-    horizon=672,
+    start_day=datetime.date.fromisocalendar(2023, 1, 1),
+    horizon=8736,
 ):
     """
     Unavailable constraints.
@@ -216,9 +221,11 @@ def create_unavailable_constraints(
 
                 if "repeat" not in ldata.keys():
                     repeat = 1
-                    repeat_pad = 672
                 else:
                     repeat = ldata["repeat"]
+                if "repeat_pad" not in ldata.keys():
+                    repeat_pad = 672
+                else:
                     repeat_pad = ldata["repeat_pad"]
                 iteration = 0
                 while iteration < repeat:
@@ -260,7 +267,7 @@ def create_weekly_unavailable_intervals(model, week_structure, max_weeks):
     unavailable_intervals = []
     flat_week_structure = week_structure.flatten()
     flat_week_structure = np.append(
-        flat_week_structure, flat_week_structure[:1]
+        flat_week_structure, [1]
     )  # LINK BETWEEN SUNDAY NIGHT AND MONDAY MORNING
     start = 0
     end = 0
@@ -325,6 +332,8 @@ def export_solution(
         "week": [],
         "weekday": [],
         "weekdayname": [],
+        "starttime": [],
+        "endtime": [],
     }
     time_slots_per_day = week_structure.shape[1]
     atomic_students_groups = get_atomic_students_groups(students_groups)
@@ -358,8 +367,12 @@ def export_solution(
             solution["start"].append(start)
             solution["end"].append(end)
             solution["duration"].append(duration)
-            solution["daystart"].append(start % time_slots_per_day)
-            solution["dayend"].append(end % time_slots_per_day)
+            daystart = start % time_slots_per_day
+            solution["daystart"].append(daystart)
+            dayend = end % time_slots_per_day
+            solution["dayend"].append(dayend)
+            solution["starttime"].append(day_slot_to_time(daystart))
+            solution["endtime"].append(day_slot_to_time(dayend))
             solution["teachers"].append(teachers)
             solution["students"].append(students)
             for group in atomic_students_groups:
@@ -607,7 +620,7 @@ def export_student_schedule_to_xlsx(
         slots_df.to_excel(writer, sheet_name=f"Week_{week}", index=False, startrow=1)
         worksheet = writer.sheets[f"Week_{week}"]
         worksheet.set_default_row(row_height)
-        worksheet.set_row(0, slots_df.shape[1], merge_format)
+        # worksheet.set_row(0, slots_df.shape[1], merge_format)
         worksheet.set_column(
             1, len(atomic_students_groups) * days_per_week + 1, column_width
         )  #
@@ -672,3 +685,9 @@ def export_student_schedule_to_xlsx(
                         worksheet.write(rstart, cstart, label, cell_format)
 
     writer.save()
+
+
+def day_slot_to_time(slot):
+    hour = str(slot // 4).zfill(2)
+    minutes = str((slot % 4) * 15).zfill(2)
+    return f"{hour}:{minutes}"
