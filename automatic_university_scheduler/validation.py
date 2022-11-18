@@ -22,10 +22,6 @@ def constraints_to_graph(constraints):
 
             for start in constraint["start_after"]:
                 for end in constraint["activities"]:
-                    # if len(offset) > 0:
-                    #     text_constraints += f"    {start} -- {offset} --> {end}\n"
-                    # else:
-                    #     text_constraints += f"    {start} --> {end}\n"
                     text_constraints += f"    {start} -->|{offset}| {end}\n"
     return text_constraints
 

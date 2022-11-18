@@ -403,6 +403,8 @@ def create_activities(
     room_unavailable_intervals,
     students_unavailable_intervals,
     weekly_unavailable_intervals,
+    cm_td_allowed_slots=[32, 39, 46, 53, 60, 67],
+    tp_allowed_slots=[32, 53, 57],
 ):
     unique_teachers, unique_rooms = get_unique_teachers_and_rooms(activity_data)
     atomic_students_groups = get_atomic_students_groups(students_groups)
@@ -526,7 +528,6 @@ def create_activities(
             if activity["kind"] in ["TD", "CM", "EX"]:
                 start_m96 = model.NewIntVar(0, horizon, f"start_mod_96_{alabel}")
                 model.AddModuloEquality(start_m96, start, 96)
-                cm_td_allowed_slots = [32, 39, 46, 53, 60, 67]
                 all_slots = np.arange(96)
                 cm_td_forbidden_slots = list(set(all_slots) - set(cm_td_allowed_slots))
                 for forbidden_slot in cm_td_forbidden_slots:
@@ -536,7 +537,6 @@ def create_activities(
             if activity["kind"] in ["TP"]:
                 start_m96 = model.NewIntVar(0, horizon, f"start_mod_96_{alabel}")
                 model.AddModuloEquality(start_m96, start, 96)
-                tp_allowed_slots = [32, 53, 57]
                 all_slots = np.arange(96)
                 tp_forbidden_slots = list(set(all_slots) - set(tp_allowed_slots))
                 for forbidden_slot in tp_forbidden_slots:

@@ -10,16 +10,19 @@ def courses_from_yml(yml_path, room_pools, default_rooms):
         course = Course(label=course_label, color=data["color"])
         courses[course_label] = course
         for label, activity in data["activities"].items():
-            students = activity["students"]
-            kind = activity["kind"]
-            duration = activity["duration"]
-            act = Activity(
-                label=f"{course_label}_{label}",
-                students=students,
-                duration=duration,
-                kind=kind,
-            )
+            act_kwargs = {"label": f"{course_label}_{label}"}
+            for key in [
+                "min_start_slot",
+                "max_start_slot",
+                "students",
+                "duration",
+                "kind",
+            ]:
+                if key in activity.keys():
+                    act_kwargs[key] = activity[key]
+            act = Activity(**act_kwargs)
             course.add_activity(act)
+            students = activity["students"]
             activities[label] = act
             for ressource in ["rooms", "teachers"]:
                 pool_name = activity[ressource]["pool"]
