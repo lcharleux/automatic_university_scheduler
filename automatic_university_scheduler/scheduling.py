@@ -412,11 +412,16 @@ def create_activities(
     room_intervals = {r: [] for r in unique_rooms}
     students_intervals = {s: [] for s in atomic_students_groups}
     students_lunch_intervals = {s: [] for s in atomic_students_groups}
-    atomic_students_unavailable_intervals = {}
-    for group, intervals in students_unavailable_intervals.items():
-        agroups = students_groups[group]
-        for agroup in agroups:
-            atomic_students_unavailable_intervals[agroup] = intervals
+    atomic_students_unavailable_intervals = []
+
+    for students_unavailable_subintervals in students_unavailable_intervals:
+        atomic_students_unavailable_intervals.append({})
+        for group, intervals in students_unavailable_subintervals.items():
+            agroups = students_groups[group]
+            for agroup in agroups:
+                if agroup not in atomic_students_unavailable_intervals[-1].keys():
+                    atomic_students_unavailable_intervals[-1][agroup] = []
+                atomic_students_unavailable_intervals[-1][agroup] += intervals
 
     for file, module in activity_data.items():
         for label, activity in module["activities"].items():
@@ -561,23 +566,31 @@ def create_activities(
                 for fb in forbidden_days:
                     model.Add(weekday != fb - 1)
 
-    for teacher, intervals in teacher_intervals.items():
-        if len(intervals) > 1:
-            if teacher in teacher_unavailable_intervals.keys():
-                all_intervals = intervals + teacher_unavailable_intervals[teacher]
-            else:
-                all_intervals = intervals
-            model.AddNoOverlap(all_intervals)
+    for teacher_unavailable_subintervals in teacher_unavailable_intervals:
+        for teacher, intervals in teacher_intervals.items():
+            if len(intervals) > 1:
+                if teacher in teacher_unavailable_subintervals.keys():
+                    all_intervals = (
+                        intervals + teacher_unavailable_subintervals[teacher]
+                    )
+                else:
+                    all_intervals = intervals
+                model.AddNoOverlap(all_intervals)
 
     for student, intervals in students_intervals.items():
         if len(intervals) > 1:
             all_intervals = intervals + weekly_unavailable_intervals
             model.AddNoOverlap(all_intervals)
 
-    for student, intervals in students_intervals.items():
-        if len(intervals) > 1:
-            all_intervals = intervals + atomic_students_unavailable_intervals[student]
-            model.AddNoOverlap(all_intervals)
+    for (
+        atomic_students_unavailable_subintervals
+    ) in atomic_students_unavailable_intervals:
+        for student, intervals in students_intervals.items():
+            if len(intervals) > 1:
+                all_intervals = (
+                    intervals + atomic_students_unavailable_subintervals[student]
+                )
+                model.AddNoOverlap(all_intervals)
 
     for student, intervals in students_intervals.items():
         if len(intervals) > 1:
@@ -591,6 +604,7 @@ def create_activities(
             else:
                 all_intervals = intervals
             model.AddNoOverlap(all_intervals)
+    return atomic_students_unavailable_intervals
 
 
 def export_student_schedule_to_xlsx(
