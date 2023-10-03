@@ -682,27 +682,32 @@ def export_student_schedule_to_xlsx(
             for sub_group in sub_groups:
                 group_index = atomic_students_groups.index(sub_group)
                 grid[activity.daystart : activity.dayend, group_index] = 1
-                gridl, nlabels = ndimage.label(grid)
-                areas = ndimage.find_objects(gridl)
-                for rslice, cslice in areas:
-                    rstart = rslice.start + row_offset
-                    cstart = cslice.start + day_offset
-                    rstop = rslice.stop + row_offset - 1
-                    cstop = cslice.stop + day_offset - 1
-                    label = f"{activity.label}\n{activity.rooms}\n{activity.teachers}"
-                    if (rstart != rstop) or (cstart != cstop):
-                        worksheet.merge_range(
-                            rstart,
-                            cstart,
-                            rstop,
-                            cstop,
-                            label,
-                            cell_format,
-                        )
-                    else:
-                        worksheet.write(rstart, cstart, label, cell_format)
+            gridl, nlabels = ndimage.label(grid)
+            # print(gridl)
+            print(sub_group)
+            areas = ndimage.find_objects(gridl)
+            for rslice, cslice in areas:
+                rstart = rslice.start + row_offset
+                cstart = cslice.start + day_offset
+                rstop = rslice.stop + row_offset - 1
+                cstop = cslice.stop + day_offset - 1
+                label = f"{activity.label}\n{activity.rooms}\n{activity.teachers}"
+                label_flat = label.replace("\n", "-")
+                print("activity")
+                print(f"{label_flat}: R={rstart}-{rstop}; C={cstart}-{cstop}")
+                if (rstart != rstop) or (cstart != cstop):
+                    worksheet.merge_range(
+                        rstart,
+                        cstart,
+                        rstop,
+                        cstop,
+                        label,
+                        cell_format,
+                    )
+                else:
+                    worksheet.write(rstart, cstart, label, cell_format)
 
-    writer.save()
+    writer.close()
 
 
 def day_slot_to_time(slot):
