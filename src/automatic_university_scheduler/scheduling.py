@@ -434,7 +434,11 @@ def create_activities(
             teachers = activity["teachers"]
             rooms = activity["rooms"]
             students = activity["students"]
-            sgroups = students_groups[students]
+            if students == None:
+                sgroups = []
+            else:
+                sgroups = students_groups[students]
+
             act_data = {}
             act_data["start"] = start
             act_data["end"] = end

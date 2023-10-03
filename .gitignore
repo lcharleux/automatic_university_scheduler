@@ -2,3 +2,4 @@
 *.xlsx#
 **/__pycache__/*
 *.env
+**/*.egg-info/*
