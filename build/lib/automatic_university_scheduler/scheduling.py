@@ -154,7 +154,7 @@ class SolutionPrinter(cp_model.CpSolverSolutionCallback):
         )
         self.__solution_count += 1
         if self.__solution_count >= self.__solution_limit:
-            print("Stopped search after %i solutions" % self.__solution_limit)
+            print("Stop search after %i solutions" % self.__solution_limit)
             self.StopSearch()
 
     def solution_count(self):
@@ -590,9 +590,7 @@ def create_activities(
         atomic_students_unavailable_subintervals
     ) in atomic_students_unavailable_intervals:
         for student, intervals in students_intervals.items():
-            if (len(intervals) > 1) and (
-                student in atomic_students_unavailable_subintervals.keys()
-            ):
+            if len(intervals) > 1:
                 all_intervals = (
                     intervals + atomic_students_unavailable_subintervals[student]
                 )
@@ -686,7 +684,7 @@ def export_student_schedule_to_xlsx(
                 grid[activity.daystart : activity.dayend, group_index] = 1
             gridl, nlabels = ndimage.label(grid)
             # print(gridl)
-            # print(sub_group)
+            print(sub_group)
             areas = ndimage.find_objects(gridl)
             for rslice, cslice in areas:
                 rstart = rslice.start + row_offset
@@ -695,8 +693,8 @@ def export_student_schedule_to_xlsx(
                 cstop = cslice.stop + day_offset - 1
                 label = f"{activity.label}\n{activity.rooms}\n{activity.teachers}"
                 label_flat = label.replace("\n", "-")
-                # print("activity")
-                # print(f"{label_flat}: R={rstart}-{rstop}; C={cstart}-{cstop}")
+                print("activity")
+                print(f"{label_flat}: R={rstart}-{rstop}; C={cstart}-{cstop}")
                 if (rstart != rstop) or (cstart != cstop):
                     worksheet.merge_range(
                         rstart,

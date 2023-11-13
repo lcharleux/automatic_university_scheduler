@@ -40,10 +40,7 @@ def courses_from_yml(yml_path, room_pools, default_rooms):
 
         # CONSTRAINTS
         inner_activity_groups = data["inner_activity_groups"]
-        if "foreign_activity_groups" in data.keys():
-            foreign_activity_groups = data["foreign_activity_groups"]
-        else:
-            foreign_activity_groups = {}
+        foreign_activity_groups = data["foreign_activity_groups"]
         for constraint in data["constraints"]:
 
             if constraint["kind"] == "succession":
