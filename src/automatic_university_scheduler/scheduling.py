@@ -234,17 +234,23 @@ def create_unavailable_constraints(
                     to_slot_repeat = max(to_slot, 0)
                     to_slot_repeat = min(to_slot_repeat, horizon)
                     if from_slot_repeat < to_slot_repeat:
-                        duration = to_slot - from_slot
+                        # duration = to_slot - from_slot
                         interval_label = f"Unavailable_{label}_{from_slot_repeat}_{to_slot_repeat}_{repeat}"
-                        interval = model.NewIntervalVar(
-                            from_slot_repeat + iteration * repeat_pad,
-                            duration,
-                            to_slot_repeat + iteration * repeat_pad,
-                            interval_label,
-                        )
-                        if label not in intervals.keys():
-                            intervals[label] = []
-                        intervals[label].append(interval)
+                        start = from_slot_repeat + iteration * repeat_pad
+                        end = to_slot_repeat + iteration * repeat_pad
+                        start = min(start, horizon)
+                        end = min(end, horizon)
+                        duration = end - start
+                        if start < end:
+                            interval = model.NewIntervalVar(
+                                start,
+                                duration,
+                                end,
+                                interval_label,
+                            )
+                            if label not in intervals.keys():
+                                intervals[label] = []
+                            intervals[label].append(interval)
                     iteration += 1
 
     return intervals
@@ -403,8 +409,9 @@ def create_activities(
     room_unavailable_intervals,
     students_unavailable_intervals,
     weekly_unavailable_intervals,
-    cm_td_allowed_slots=[32, 39, 46, 53, 60, 67],
-    tp_allowed_slots=[32, 53, 57],
+    # cm_td_allowed_slots=[32, 39, 46, 53, 60, 67],
+    # tp_allowed_slots=[32, 53, 57],
+    activities_kinds,
 ):
     unique_teachers, unique_rooms = get_unique_teachers_and_rooms(activity_data)
     atomic_students_groups = get_atomic_students_groups(students_groups)
@@ -533,33 +540,48 @@ def create_activities(
             if "max_start_slot" in activity.keys():
                 if activity["max_start_slot"] != None:
                     model.Add(start <= activity["max_start_slot"])
-            # ALLOWED CM AND TD START SLOTS: TO IMPROVE
-            if activity["kind"] in ["TD", "CM", "EX"]:
-                start_m96 = model.NewIntVar(0, horizon, f"start_mod_96_{alabel}")
-                model.AddModuloEquality(start_m96, start, 96)
-                all_slots = np.arange(96)
-                cm_td_forbidden_slots = list(set(all_slots) - set(cm_td_allowed_slots))
-                for forbidden_slot in cm_td_forbidden_slots:
-                    model.Add(start_m96 != forbidden_slot)
 
-            # ALLOWED TP START SLOTS: TO IMPROVE
-            if activity["kind"] in ["TP"]:
-                start_m96 = model.NewIntVar(0, horizon, f"start_mod_96_{alabel}")
-                model.AddModuloEquality(start_m96, start, 96)
-                all_slots = np.arange(96)
-                tp_forbidden_slots = list(set(all_slots) - set(tp_allowed_slots))
-                for forbidden_slot in tp_forbidden_slots:
-                    model.Add(start_m96 != forbidden_slot)
+            # ALLOWED START SLOTS PER ACTIVITY KIND
 
-            # ALLOWED LUNCH START SLOTS: TO IMPROVE
-            if activity["kind"] in ["lunch"]:
-                start_m96 = model.NewIntVar(0, horizon, f"start_mod_96_{alabel}")
-                model.AddModuloEquality(start_m96, start, 96)
-                lunch_allowed_slots = [46, 47, 48, 49, 50, 51, 52, 53]
-                all_slots = np.arange(96)
-                lunch_forbidden_slots = list(set(all_slots) - set(lunch_allowed_slots))
-                for forbidden_slot in lunch_forbidden_slots:
-                    model.Add(start_m96 != forbidden_slot)
+            activity_allowed_slots = activities_kinds[activity["kind"]][
+                "allowed_start_time_slots"
+            ]
+            start_m96 = model.NewIntVar(0, horizon, f"start_mod_96_{alabel}")
+            model.AddModuloEquality(start_m96, start, 96)
+            all_slots = np.arange(96)
+            activity_forbidden_slots = list(
+                set(all_slots) - set(activity_allowed_slots)
+            )
+            for forbidden_slot in activity_forbidden_slots:
+                model.Add(start_m96 != forbidden_slot)
+
+            # # ALLOWED CM AND TD START SLOTS: TO IMPROVE
+            # if activity["kind"] in ["TD", "CM", "EX"]:
+            #     start_m96 = model.NewIntVar(0, horizon, f"start_mod_96_{alabel}")
+            #     model.AddModuloEquality(start_m96, start, 96)
+            #     all_slots = np.arange(96)
+            #     cm_td_forbidden_slots = list(set(all_slots) - set(cm_td_allowed_slots))
+            #     for forbidden_slot in cm_td_forbidden_slots:
+            #         model.Add(start_m96 != forbidden_slot)
+
+            # # ALLOWED TP START SLOTS: TO IMPROVE
+            # if activity["kind"] in ["TP"]:
+            #     start_m96 = model.NewIntVar(0, horizon, f"start_mod_96_{alabel}")
+            #     model.AddModuloEquality(start_m96, start, 96)
+            #     all_slots = np.arange(96)
+            #     tp_forbidden_slots = list(set(all_slots) - set(tp_allowed_slots))
+            #     for forbidden_slot in tp_forbidden_slots:
+            #         model.Add(start_m96 != forbidden_slot)
+
+            # # ALLOWED LUNCH START SLOTS: TO IMPROVE
+            # if activity["kind"] in ["lunch"]:
+            #     start_m96 = model.NewIntVar(0, horizon, f"start_mod_96_{alabel}")
+            #     model.AddModuloEquality(start_m96, start, 96)
+            #     lunch_allowed_slots = [46, 47, 48, 49, 50, 51, 52, 53]
+            #     all_slots = np.arange(96)
+            #     lunch_forbidden_slots = list(set(all_slots) - set(lunch_allowed_slots))
+            #     for forbidden_slot in lunch_forbidden_slots:
+            #         model.Add(start_m96 != forbidden_slot)
 
             if "forbidden_weekdays" in activity.keys():
                 forbidden_days = activity["forbidden_weekdays"]

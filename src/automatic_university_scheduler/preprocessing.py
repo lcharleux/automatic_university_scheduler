@@ -64,12 +64,12 @@ def courses_from_yml(yml_path, room_pools, default_rooms):
                         for start_group in start_groups:
                             if start_group in inner_activity_groups.keys():
                                 start_activities = inner_activity_groups[start_group]
-                                inner = True
+                                inner_start = True
                             elif start_group in foreign_activity_groups.keys():
                                 start_activities = foreign_activity_groups[start_group]
-                                inner = False
+                                inner_start = False
                             # print(inner, start_group, "-->", end_group)
-                            if inner:
+                            if inner_start:
                                 start_activities = [
                                     activities[k]
                                     for k in inner_activity_groups[start_group]
