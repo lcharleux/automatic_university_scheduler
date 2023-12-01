@@ -1,8 +1,21 @@
+import numpy as np
+import pandas as pd
 import yaml
 from automatic_university_scheduler.scheduling import Activity, Course
 
 
 def courses_from_yml(yml_path, room_pools, default_rooms):
+    """
+    Parse a YAML file and create a dictionary of Course objects.
+
+    Parameters:
+    yml_path (str): The path to the YAML file.
+    room_pools (dict): A dictionary mapping room categories to lists of rooms.
+    default_rooms (dict): A dictionary mapping student counts to default rooms.
+
+    Returns:
+    dict: A dictionary mapping course labels to Course objects.
+    """
     activities = {}
     courses = {}
     all_data = yaml.safe_load(open(yml_path))
@@ -92,3 +105,30 @@ def courses_from_yml(yml_path, room_pools, default_rooms):
                                         max_offset=max_offset,
                                     )
     return courses
+
+
+def read_week_structure_from_csv(path):
+    """
+    Reads a week structure from a CSV file and returns it as a 2D numpy array.
+
+    The CSV file should have rows representing days and columns representing time slots.
+    Each cell in the CSV file should contain a string of '0's and '1's,
+    where '1' indicates that the corresponding time slot on the corresponding day is available,
+    and '0' indicates that it is not.
+
+    Parameters:
+    path (str): The path to the CSV file.
+
+    Returns:
+    np.array: A 2D numpy array of integers representing the week structure.
+              Each row corresponds to a day and each column corresponds to a time slot.
+              A '1' indicates that the corresponding time slot on the corresponding day is available,
+              and a '0' indicates that it is not.
+    """
+    return np.array(
+        [
+            list("".join(row))
+            for row in pd.read_csv(path, index_col=0, header=0, dtype=str).values
+        ],
+        dtype=int,
+    )

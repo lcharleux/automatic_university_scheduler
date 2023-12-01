@@ -19,12 +19,42 @@ DAYS_NAMES = [
 
 
 class Course:
+    """
+    A class used to represent a Course.
+
+    ...
+
+    Attributes
+    ----------
+    label : str
+        a string representing the label of the course
+    color : str
+        a string representing the color of the course, default is "red"
+    activities : dict
+        a dictionary storing the activities of the course, keys are activity labels and values are Activity objects
+
+    Methods
+    -------
+    to_dict():
+        Returns a dictionary representation of the Course object.
+    add_activity(activity):
+        Adds an activity to the course's activities dictionary and sets the course as the parent of the activity.
+    """
+
     def __init__(self, label, color="red"):
         self.label = label
         self.color = color
         self.activities = {}
 
     def to_dict(self):
+        """
+        Returns a dictionary representation of the Course object.
+
+        Returns
+        -------
+        dict
+            a dictionary with course label as key and another dictionary as value which contains color and activities of the course
+        """
         out = {self.label: {"color": self.color}}
         actitivies_dict = {}
         for alabel, activity in self.activities.items():
@@ -33,11 +63,63 @@ class Course:
         return out
 
     def add_activity(self, activity):
+        """
+        Adds an activity to the course's activities dictionary and sets the course as the parent of the activity.
+
+        Parameters
+        ----------
+        activity : Activity
+            an Activity object to be added to the course
+        """
         activity.parent = self
         self.activities[activity.label] = activity
 
 
 class Activity:
+    """
+    A class used to represent an Activity.
+
+    ...
+
+    Attributes
+    ----------
+    label : str
+        a string representing the label of the activity
+    kind : str
+        a string representing the kind of the activity, default is "TD"
+    duration : int
+        an integer representing the duration of the activity, default is 1
+    teachers : list
+        a list storing the teachers of the activity
+    rooms : list
+        a list storing the rooms of the activity
+    students : list
+        a list storing the students of the activity
+    after : dict
+        a dictionary storing the activities that should be after this activity
+    parent : Course
+        a Course object representing the parent course of the activity
+    min_start_slot : int
+        an integer representing the minimum start slot of the activity
+    max_start_slot : int
+        an integer representing the maximum start slot of the activity
+
+    Methods
+    -------
+    add_ressources(pool, kind="teachers", quantity=1):
+        Adds resources to the activity.
+    add_after(other, min_offset=0, max_offset=None):
+        Adds an activity that should be after this activity.
+    add_multiple_after(others, *args, **kwargs):
+        Adds multiple activities that should be after this activity.
+    add_after_manual(parent_label, activity_label, min_offset=0, max_offset=None):
+        Manually adds an activity that should be after this activity.
+    reset_after():
+        Resets the 'after' attribute of the activity.
+    to_dict():
+        Returns a dictionary representation of the Activity object.
+    """
+
     def __init__(
         self,
         label,
@@ -65,12 +147,40 @@ class Activity:
         self.max_start_slot = max_start_slot
 
     def add_ressources(self, pool, kind="teachers", quantity=1):
+        """
+        Adds resources to the activity.
+
+        Parameters:
+        pool : list
+            a list of resources to be added to the activity
+        kind : str, optional
+            a string representing the kind of the resources, either "teachers" or "rooms", default is "teachers"
+        quantity : int, optional
+            an integer representing the quantity of the resources to be added, default is 1
+
+        Returns:
+        None
+        """
         if kind == "teachers":
             self.teachers.append((quantity, pool))
         elif kind == "rooms":
             self.rooms.append((quantity, pool))
 
     def add_after(self, other, min_offset=0, max_offset=None):
+        """
+        Adds resources to the activity.
+
+        Parameters:
+        pool : list
+            a list of resources to be added to the activity
+        kind : str, optional
+            a string representing the kind of the resources, either "teachers" or "rooms", default is "teachers"
+        quantity : int, optional
+            an integer representing the quantity of the resources to be added, default is 1
+
+        Returns:
+        None
+        """
         out = {}
         if min_offset is not None:
             out["min_offset"] = min_offset
