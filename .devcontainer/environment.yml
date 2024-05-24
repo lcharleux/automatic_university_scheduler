@@ -1,0 +1,17 @@
+name: scheduling
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - ipython
+  - pre-commit
+  - pytest
+  - pandas
+  - yaml
+  - pytables
+  - xlrd
+  - xlwt
+  - xlsxwriter
+  - numpy
+  - openpyxl

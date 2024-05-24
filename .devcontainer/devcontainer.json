@@ -1,74 +1,58 @@
-// For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
-// https://github.com/microsoft/vscode-dev-containers/tree/v0.238.0/containers/python-3-miniconda
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/ubuntu
 {
-	"initializeCommand": "cd $(pwd)/.devcontainer && make update-env-vars",
-	"name": "OR-Tools",
-	// "build": {
-	// 	"context": "..",
-	// 	"dockerfile": "Dockerfile",
-	// 	"args": {
-	// 	"MODULE_NAME":"ortools",
-	// 	"IMG_NAME":"ortools",
-	// 	"TAG":"0.2",
-	// 	"USERNAME":"${localEnv:USER}",
-	// 	"USER_UID":"${localEnv:USER_UID}",
-	// 	"USER_GID":"${localEnv:USER_GID}",
-	// 	"CONDA_ENV_NAME":"ortools"}
-	// },
-	"dockerComposeFile": "docker-compose.yml",
-	"service": "ortools",
-	"workspaceFolder": "/automatic_university_scheduler",
-	"shutdownAction": "stopCompose",
-	// Configure tool-specific properties.
-	"customizations": {
-		// Configure properties specific to VS Code.
-		"vscode": {
-			// Set *default* container specific settings.json values on container create.
-			"settings": {
-				"python.defaultInterpreterPath": "/opt/conda/bin/python",
-				"python.linting.enabled": true,
-				"python.linting.pylintEnabled": true,
-				"python.formatting.autopep8Path": "/usr/local/py-utils/bin/autopep8",
-				//python.formatting.blackPath": "/usr/local/py-utils/bin/black",
-				"python.formatting.yapfPath": "/usr/local/py-utils/bin/yapf",
-				"python.linting.banditPath": "/usr/local/py-utils/bin/bandit",
-				"python.linting.flake8Path": "/usr/local/py-utils/bin/flake8",
-				"python.linting.mypyPath": "/usr/local/py-utils/bin/mypy",
-				"python.linting.pycodestylePath": "/usr/local/py-utils/bin/pycodestyle",
-				"python.linting.pydocstylePath": "/usr/local/py-utils/bin/pydocstyle",
-				"python.linting.pylintPath": "/usr/local/py-utils/bin/pylint",
-				"terminal.integrated.defaultProfile.linux": "bash (container default)",
-				"terminal.integrated.shell.linux": "/bin/bash",
-				"terminal.integrated.profiles.linux": {
-					"bash (container default)": {
-						"path": "/bin/bash",
-						"overrideName": true
-					}
-				}
-			},
-			// Add the IDs of extensions you want installed when the container is created.
-			"extensions": [
-				"ms-python.python",
-				"ms-python.vscode-pylance",
-				"mechatroner.rainbow-csv",
-				"ms-azuretools.vscode-docker",
-				"ms-toolsai.jupyter",
-				"ms-toolsai.jupyter-keymap",
-				"ms-toolsai.jupyter-renderers",
-				"mhutchie.git-graph",
-				"donjayamanne.githistory",
-				"eamodio.gitlens"
-			]
-		}
-	},
-	// "postCreateCommand": "/bin/bash postCommand.sh",
-	"postCreateCommand": "ps -p $$ && echo '----------------' && cd ${CONTAINER_REPO_PATH} && /bin/bash .devcontainer/postCommand.sh"
-
-	//"postAttachCommand": "/bin/bash"
-	// Use 'forwardPorts' to make a list of ports inside the container available locally.
-	// "forwardPorts": [],
-	// Use 'postCreateCommand' to run commands after the container is created.
-	// "postCreateCommand": "python --version",
-	// Comment out to connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
-
+    "name": "University Scheduling",
+    // Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
+    // "image": "mcr.microsoft.com/devcontainers/base:jammy"
+    //"image": "scientific_python:latest",
+    "build": {
+        "dockerfile": "Dockerfile"
+    },
+    "runArgs": [
+        "--net",
+        "host",
+        "-e",
+        "DISPLAY=${env:DISPLAY}",
+        "-v",
+        "/tmp/.X11-unix:/tmp/.X11-unix"
+    ],
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "terminal.integrated.defaultProfile.linux": "bash",
+                "terminal.integrated.profiles.linux": {
+                    "bash (container default)": {
+                        "path": "/bin/bash",
+                        "overrideName": true
+                    }
+                },
+                // "terminal.integrated.fontFamily": "'Hack NF'",
+                "editor.fontFamily": "'DejaVu Sans Mono for Powerline'",
+                "python.defaultInterpreterPath": "/opt/conda/envs/scheduling/bin/python"
+                // "python.languageServer": "Pylance",
+                // "[python]": {
+                //     "editor.defaultFormatter": "ms-python.black-formatter",
+                //     "editor.formatOnSave": true
+                // }
+            },
+            "extensions": [
+                "ms-python.python",
+                "GitHub.copilot",
+                "GitHub.copilot-chat",
+                "GitHub.copilot-labs",
+                "ms-python.black-formatter",
+                "ms-python.isort",
+                "PKief.material-icon-theme",
+                "ms-toolsai.jupyter",
+                "ms-python.pylint",
+                "mhutchie.git-graph",
+                "mechatroner.rainbow-csv"
+            ]
+        }
+    },
+    "postStartCommand": "/opt/conda/envs/${CONDA_ENV_NAME}/bin/pre-commit install"
+    // "postCreateCommand": "/bin/bash /tmp/postCreateCommand.sh"
+    // "features": {
+    // 	"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
+    // }
 }
