@@ -1,11 +1,33 @@
 import pandas as pd
+from string import Template
 
+template = r"""
+<html lang="fr">		
+<head>		
+    <meta charset="utf-8" />		
+</head>		
+<body>
+<h1>
+$TITLE
+</h1>		
+    <pre class="mermaid">		
+    flowchart TB	
+    $GRAPH
+    </pre>		
+    <script type="module">		
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@9/dist/mermaid.esm.min.mjs';		
+    mermaid.initialize({ startOnLoad: true });		
+    </script>		
+</body>		
+</html>	
+"""
 
 def constraints_to_graph(constraints):
     """
     Converts YAML constraint model to Mermaid graph.
     """
-    text_constraints = "::: mermaid\n    graph TB\n"
+    #text_constraints = "::: mermaid\n    graph TB\n"
+    text_constraints = ""
     for constraint in constraints:
         if constraint["kind"] == "succession":
             offset = ""
@@ -23,7 +45,10 @@ def constraints_to_graph(constraints):
             for start in constraint["start_after"]:
                 for end in constraint["activities"]:
                     text_constraints += f"        {start} -->|{offset}| {end}\n"
-    text_constraints += ":::"
+    #text_constraints += ":::"
+
+    text_constraints = Template(template).substitute(GRAPH = text_constraints, TITLE = "Constrainte")
+
     return text_constraints
 
 
