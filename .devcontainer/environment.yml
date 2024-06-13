@@ -16,5 +16,7 @@ dependencies:
   - numpy
   - openpyxl
   - scipy
+  - networkx
+  - matplotlib
   - pip:
     - ortools
