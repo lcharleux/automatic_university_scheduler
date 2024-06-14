@@ -3,25 +3,46 @@ from string import Template
 import networkx as nx
 
 _mermaid_flow_template = r"""
-<html lang="fr">		
-<head>		
-    <meta charset="utf-8" />		
-</head>		
+<html lang="fr">
+<head>
+    <meta charset="utf-8" />
+</head>
 <body>
 <h1>
 $TITLE
-</h1>		
-    <pre class="mermaid">		
-    flowchart TB	
+</h1>
+    <pre class="mermaid">
+    flowchart TB
     $GRAPH
-    </pre>		
-    <script type="module">		
-    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@9/dist/mermaid.esm.min.mjs';		
-    mermaid.initialize({ startOnLoad: true });		
-    </script>		
-</body>		
-</html>	
+    </pre>
+    <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@9/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true });
+    </script>
+</body>
+</html>
 """
+
+
+class Colors:
+    RED = "\033[91m"
+    GREEN = "\033[92m"
+    YELLOW = "\033[93m"
+    BLUE = "\033[94m"
+    MAGENTA = "\033[95m"
+    CYAN = "\033[96m"
+    WHITE = "\033[97m"
+    OFF = "\033[0m"
+
+
+class Messages:
+    SUCCESS = f"{Colors.GREEN}SUCCESS{Colors.OFF}"
+    WARNING = f"{Colors.YELLOW}WARNING{Colors.OFF}"
+    ERROR = f"{Colors.RED}ERROR{Colors.OFF}"
+    INFO = f"{Colors.BLUE}INFO{Colors.OFF}"
+    CYCLE = f"{Colors.MAGENTA}CYCLE{Colors.OFF}"
+    SOURCE = f"{Colors.CYAN}SOURCE{Colors.OFF}"
+    SINK = f"{Colors.CYAN}SINK{Colors.OFF}"
 
 
 def constraints_to_mermaid_graph(constraints: list) -> str:
@@ -126,25 +147,29 @@ def analyze_contraints_graph(constraints: list) -> pd.DataFrame:
     cycles = cycles_in_graph(G)
     if len(cycles) > 0:
         for cycle in cycles:
-            print(f"    CYCLES: cycle detected in graph: {cycle} => ERROR")
+            print(f"    CYCLES: cycle detected in graph: {cycle} => {Messages.ERROR}")
             raise ValueError("Cycles detected in constraints graph")
     else:
-        print(f"    CYCLES: success: no cycles detected in graph => SUCCESS")
+        print(f"    CYCLES: success: no cycles detected in graph => {Messages.SUCCESS}")
 
     # GRAPH ANALYSIS
     graph_degrees_df = graph_degrees(G)
     source_nodes = list(graph_degrees_df[graph_degrees_df.in_degree == 0].index)
     sink_nodes = list(graph_degrees_df[graph_degrees_df.out_degree == 0].index)
     if len(source_nodes) == 1:
-        print(f"    SOURCE NODES: {source_nodes[0]} is the only source node => SUCCESS")
+        print(
+            f"    SOURCE NODES: {source_nodes[0]} is the only source node => {Messages.SUCCESS}"
+        )
     else:
         print(
-            f"    SOURCE NODES: {len(source_nodes)} source nodes detected: {source_nodes} => WARNING"
+            f"    SOURCE NODES: {len(source_nodes)} source nodes detected: {source_nodes} => {Messages.WARNING}"
         )
     if len(sink_nodes) == 1:
-        print(f"    SINK NODES: {sink_nodes[0]} is the only sink node = SUCCESS")
+        print(
+            f"    SINK NODES: {sink_nodes[0]} is the only sink node = {Messages.SUCCESS}"
+        )
     else:
         print(
-            f"    SINK NODES: {len(sink_nodes)} sink nodes detected: {sink_nodes} => WARNING"
+            f"    SINK NODES: {len(sink_nodes)} sink nodes detected: {sink_nodes} => {Messages.WARNING}"
         )
     return graph_degrees_df, cycles
