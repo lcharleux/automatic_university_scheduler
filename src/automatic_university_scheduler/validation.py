@@ -69,9 +69,18 @@ def constraints_to_graph(constraints):
                     offset += f" <= {max_offset}"
 
             for start in constraint["start_after"]:
+                if "CM" in start:
+                    start += ":::CMclass"
+                if "TD" in start:
+                    start += ":::TDclass"
+                if "TP" in start:
+                    start += ":::TPclass"
                 for end in constraint["activities"]:
                     text_constraints += f"        {start} -->|{offset}| {end}\n"
-    #text_constraints += ":::"
+
+    text_constraints += "     classDef CMclass fill:#f77\n"
+    text_constraints += "     classDef TDclass fill:#7f7\n"
+    text_constraints += "     classDef TPclass fill:#77f\n"
 
     text_constraints = Template(template).substitute(GRAPH = text_constraints, TITLE = "Constrainte")
 
