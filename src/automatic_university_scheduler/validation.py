@@ -22,6 +22,24 @@ $TITLE
 </html>	
 """
 
+def quarter_to_redeable(quarter):
+    """
+    Converts quarter of hour to human readable format.
+    output format is "x d: x h: x min".
+    """
+    days = quarter // 96
+    hours = (quarter % 96) // 4
+    minutes = (quarter % 96) % 4 * 15
+    res= ""
+    if days > 0:
+        res += f"{days}d"
+    if hours > 0:
+        res += f" {hours}h"
+    if minutes > 0:
+        res += f" {minutes}min"
+    return res
+
+
 def constraints_to_graph(constraints):
     """
     Converts YAML constraint model to Mermaid graph.
@@ -34,12 +52,20 @@ def constraints_to_graph(constraints):
             if "min_offset" in constraint.keys():
                 min_offset = constraint["min_offset"]
                 if min_offset != None:
+                    min_offset = quarter_to_redeable(min_offset)
+                    offset += f"{min_offset} <= t"
+                if min_offset == None:
+                    min_offset = "0"
                     offset += f"{min_offset} <= t"
             if "max_offset" in constraint.keys():
                 max_offset = constraint["max_offset"]
                 if max_offset != None:
                     if len(offset) == 0:
                         offset += "t"
+                    max_offset = quarter_to_redeable(max_offset)
+                    offset += f" <= {max_offset}"
+                if max_offset == None:
+                    max_offset = "inf"
                     offset += f" <= {max_offset}"
 
             for start in constraint["start_after"]:
