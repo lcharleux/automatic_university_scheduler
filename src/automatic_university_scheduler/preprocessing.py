@@ -2,6 +2,8 @@ import numpy as np
 import pandas as pd
 import yaml
 from automatic_university_scheduler.scheduling import Activity, Course
+from automatic_university_scheduler.utils import create_directories
+from automatic_university_scheduler.datetime import TimeDelta
 
 
 def courses_from_yml(yml_path, room_pools, default_rooms):
@@ -107,7 +109,9 @@ def courses_from_yml(yml_path, room_pools, default_rooms):
     return courses
 
 
-def create_course_activities(course_label, course_data, room_pools, default_rooms, teacher_full_names):
+def create_course_activities(
+    course_label, course_data, room_pools, default_rooms, teacher_full_names
+):
     """
     Parse a YAML file and create a dictionary of Course objects.
 
@@ -121,7 +125,7 @@ def create_course_activities(course_label, course_data, room_pools, default_room
     """
     activities = {}
     course = Course(label=course_label, color=course_data["color"])
-    
+
     for label, activity in course_data["activities"].items():
         act_kwargs = {"label": f"{course_label}_{label}"}
         for key in [
