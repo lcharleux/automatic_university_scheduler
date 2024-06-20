@@ -13,225 +13,184 @@ import yaml
 import string
 from automatic_university_scheduler.scheduling import (
     read_json_data,
-    # get_unique_teachers_and_rooms,
     create_unavailable_constraints,
     create_weekly_unavailable_intervals,
     SolutionPrinter,
     export_solution,
-    # get_atomic_students_groups,
     create_activities,
     export_student_schedule_to_xlsx,
+    get_absolute_week_duration_deviation,
+    read_week_structure,
+    load_setup,
 )
-from automatic_university_scheduler.preprocessing import read_week_structure_from_csv
+from automatic_university_scheduler.preprocessing import (
+    read_week_structure_from_csv,
+    get_unique_ressources_in_activities,
+)
+from automatic_university_scheduler.utils import (
+    read_from_yaml,
+    create_directories,
+    dump_to_yaml,
+    Messages,
+)
+
+from automatic_university_scheduler.datetime import (
+    DateTime,
+    TimeDelta,
+    TimeInterval,
+    read_time_intervals,
+)
+import math
 
 
-def read_week_structure(student_data_path):
-    """
-    Reads the week structure from a YAML file
-    """
-    with open(student_data_path, "r") as f:
-        data = yaml.safe_load(f)
-    WEEK_STRUCTURE = np.array(
-        [list(day.replace(" ", "")) for day in data["week_structure"]]
-    ).astype(int)
-    return WEEK_STRUCTURE
-
-
-# WEEK_STRUCTURE = np.array(
-#     #    0h   1h   2h   3h   4h   5h   6h   7h   8h   9h   10h  11h  12h  13h  14h  15h  16h  17h  18h  19h  20h  21h  22h  23h
-#     [
-#         "0000 0000 0000 0000 0000 0000 0000 0000 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 0000 0000 0000 0000 0000",  # MONDAY
-#         "0000 0000 0000 0000 0000 0000 0000 0000 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 0000 0000 0000 0000 0000",  # TUESDAY
-#         "0000 0000 0000 0000 0000 0000 0000 0000 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 0000 0000 0000 0000 0000",  # WEDNESDAY
-#         "0000 0000 0000 0000 0000 0000 0000 0000 1111 1111 1111 1111 1111 1111 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000",  # THURSDAY
-#         "0000 0000 0000 0000 0000 0000 0000 0000 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 0000 0000 0000 0000 0000",  # FRIDAY
-#         "0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000",  # SATRUDAY
-#         "0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000",  # SUNDAY
-#     ]
-# )
-
-
-# WEEK_STRUCTURE = np.array(
-#     [list(day.replace(" ", "")) for day in WEEK_STRUCTURE]
-# ).astype(int)
-WEEK_STRUCTURE = read_week_structure("student_data.yaml")
-
-
-# WEEK_STRUCTURE2 = np.array([list("".join(row)) for row in pd.read_csv("week_matrix.csv",index_col = 0, header = 0, dtype = str).values], dtype = int)
-# WEEK_STRUCTURE2 = read_week_structure_from_csv("week_matrix.csv")
-
-
-DAYS_PER_WEEK, TIME_SLOTS_PER_DAY = WEEK_STRUCTURE.shape
-MAX_WEEKS = 21
-TIME_SLOTS_PER_WEEK = TIME_SLOTS_PER_DAY * DAYS_PER_WEEK
-horizon = MAX_WEEKS * TIME_SLOTS_PER_WEEK
-START_DAY = datetime.date.fromisocalendar(2024, 1, 1)
-STOP_DAY = START_DAY + datetime.timedelta(weeks=MAX_WEEKS)
+# SETUP
+setup = load_setup("setup.yaml")
+WEEK_STRUCTURE = setup["WEEK_STRUCTURE"]
+ORIGIN_DATETIME = setup["ORIGIN_DATETIME"]
+HORIZON = setup["HORIZON"]
+TIME_SLOT_DURATION = setup["TIME_SLOT_DURATION"]
+MAX_WEEKS = setup["MAX_WEEKS"]
+TIME_SLOTS_PER_WEEK = setup["TIME_SLOTS_PER_WEEK"]
+activities_kinds = setup["ACTIVITIES_KINDS"]
+DAYS_PER_WEEK = setup["DAYS_PER_WEEK"]
+TIME_SLOTS_PER_DAY = setup["TIME_SLOTS_PER_DAY"]
 
 # ACTIVITY GENERATION
 
-print("Horizon = %i" % horizon)
+print("Horizon = %i" % HORIZON)
 
-activity_data_dir = "activity_data/"
-teacher_data_dir = "teacher_data/"
-room_data_dir = "room_data/"
-student_data_dir = "student_data/"
-teacher_data = [read_json_data(teacher_data_dir)]
+preprocessing_dir = "planification/preprocessing/"
+activity_data_dir = "planification/preprocessing/activities/"
+output_dir = "planification/outputs/"
+extracted_data_dir = "planification/outputs/extracted_data/"
+create_directories([activity_data_dir, output_dir, extracted_data_dir])
+teacher_data = read_from_yaml("teacher_data.yaml")
 activity_data = read_json_data(activity_data_dir)
-room_data = read_json_data(room_data_dir)
-calendar_data = read_json_data(student_data_dir)
-
+room_data = read_from_yaml("room_data.yaml")
+student_data = read_from_yaml("student_data.yaml")
+calendar_data = student_data["constraints"]
+if True:
+    extracted_constraints = read_from_yaml(
+        f"{extracted_data_dir}extracted_constraints.yaml"
+    )
+else:
+    extracted_constraints = None
 
 # STUDENTS GROUPS
-students_groups = {
-    None: [],
-    "EPU-3-S6": [
-        "MM-3-A1",
-        "MM-3-A2",
-        "MM-3-B1",
-        "MM-3-B2",
-        "MM-3-C1",
-        "MM-3-C2",
-        "SNI-3-D1",
-        # "SNI-3-D2",
-        "IDU-3-G1",
-        "IDU-3-G2",
-    ],
-    "SNI-3, MM-3, IDU-3": [
-        "MM-3-A1",
-        "MM-3-A2",
-        "MM-3-B1",
-        "MM-3-B2",
-        "MM-3-C1",
-        "MM-3-C2",
-        "SNI-3-D1",
-        # "SNI-3-D2",
-        "IDU-3-G1",
-        "IDU-3-G2",
-    ],
-    "MM-3": ["MM-3-A1", "MM-3-A2", "MM-3-B1", "MM-3-B2", "MM-3-C1", "MM-3-C2"],
-    "SNI-3": ["SNI-3-D1"],
-    "IDU-3": ["IDU-3-G1", "IDU-3-G2"],
-    "IDU-3_SNI-3": ["IDU-3-G1", "IDU-3-G2", "SNI-3-D1"],  # POUR LES MATH641
-    "SNI-3, IDU-3": ["IDU-3-G1", "IDU-3-G2", "SNI-3-D1"],
-    "MM-3-A-TD": ["MM-3-A1", "MM-3-A2"],
-    "MM-3-B-TD": ["MM-3-B1", "MM-3-B2"],
-    "MM-3-C-TD": ["MM-3-C1", "MM-3-C2"],
-    "SNI-3-D-TD": ["SNI-3-D1"],
-    "IDU-3-G-TD": ["IDU-3-G1", "IDU-3-G2"],
-    "MM-3-A1": ["MM-3-A1"],
-    "MM-3-A1-TP": ["MM-3-A1"],
-    "MM-3-A2": ["MM-3-A2"],
-    "MM-3-A2-TP": ["MM-3-A2"],
-    "MM-3-B1": ["MM-3-B1"],
-    "MM-3-B1-TP": ["MM-3-B1"],
-    "MM-3-B2": ["MM-3-B2"],
-    "MM-3-B2-TP": ["MM-3-B2"],
-    "MM-3-C1": ["MM-3-C1"],
-    "MM-3-C1-TP": ["MM-3-C1"],
-    "MM-3-C2": ["MM-3-C2"],
-    "MM-3-C2-TP": ["MM-3-C2"],
-    "SNI-3-D1": ["SNI-3-D1"],
-    "SNI-3-D1-TP": ["SNI-3-D1"],
-    # "SNI-3-D2": ["SNI-3-D2"],
-    # "SN-3-D2": ["SNI-3-D2"],  # BUG EXTRACTION ADE
-    "IDU-3-G1": ["IDU-3-G1"],
-    "IDU-3-G1-TP": ["IDU-3-G1"],
-    "IDU-3-G2": ["IDU-3-G2"],
-    "IDU-3-G2-TP": ["IDU-3-G2"],
-}
+students_data = yaml.load(open("student_data.yaml"), Loader=yaml.SafeLoader)
+students_groups = students_data["groups"]
 
-
+# MODEL CREATION
 model = cp_model.CpModel()
-
-
-# EXISTING ACTIVIITIES
-def get_unique_ressources_in_activities(data, kind="teachers"):
-    """
-    Gets the unique ressources of a given kind in activity data
-    """
-    unique_ressources = []
-    for module, mdata in data.items():
-        for act_key, act in mdata["activities"].items():
-            for ress in act[kind]:
-                unique_ressources += ress[1]
-
-    return np.unique(unique_ressources)
 
 
 # EXISTING ACTIVITIES
 # 1. ROOMS & TEACHERS
-tracked_ressources = {
-    "teachers": get_unique_ressources_in_activities(activity_data, kind="teachers"),
-    "rooms": get_unique_ressources_in_activities(activity_data, kind="rooms"),
-}
-existing_data = pd.read_csv("existing_activities/extraction_data.csv").fillna("")
+# tracked_ressources = {
+#     "teachers": get_unique_ressources_in_activities(activity_data, kind="teachers"),
+#     "rooms": get_unique_ressources_in_activities(activity_data, kind="rooms"),
+# }
+# existing_data = pd.read_csv("existing_activities/extraction_data.csv").fillna("")
+tracked_ressources = read_from_yaml(f"{preprocessing_dir}/tracked_ressources.yaml")
 ressource_existing_intervals = {
     k: {t: [] for t in tracked_ressources[k]} for k in ["teachers", "rooms"]
 }
-
-with open("outputs/tracked_ressources.yml", "w") as ymldump:
-    yaml.dump({k: v.tolist() for k, v in tracked_ressources.items()}, ymldump)
-
+# dump_to_yaml(
+#     {k: v.tolist() for k, v in tracked_ressources.items()},
+#     f"{output_dir}/tracked_ressources.yaml",
+# )
 
 # 2. STUDENTS
-school = "POLYTECH Annecy"
-unique_students = list(students_groups.keys())
-students_existing_intervals = {k: [] for k in students_groups.keys()}
+# school = "POLYTECH Annecy"
+# unique_students = list(students_groups.keys())
+# students_existing_intervals = {k: [] for k in students_groups.keys()}
 
 
-for index, row in existing_data.iterrows():
-    year = row.year
-    week = row.week
-    weekday = row.weekday
-    from_dayslot = row.from_dayslot
-    to_dayslot = row.to_dayslot
-    act = {
-        "kind": "isocalendar",
-        "from_year": year,
-        "from_week": week,
-        "from_weekday": weekday,
-        "from_dayslot": from_dayslot,
-        "to_year": year,
-        "to_week": week,
-        "to_weekday": weekday,
-        "to_dayslot": to_dayslot,
-    }
-    for ressource_kind in ["teachers", "rooms"]:
-        tracked_ress = tracked_ressources[ressource_kind]
-        ressources = row[ressource_kind]
-        if ressources == "":
-            ressources = []
-        else:
-            ressources = [t.strip() for t in ressources.split(",")]
-        for ressource in ressources:
-            if ressource in tracked_ress:
-                ressource_existing_intervals[ressource_kind][ressource].append(act)
+# for index, row in existing_data.iterrows():
+#     year = row.year
+#     week = row.week
+#     weekday = row.weekday
+#     from_dayslot = row.from_dayslot
+#     to_dayslot = row.to_dayslot
+#     act = {
+#         "kind": "isocalendar",
+#         "from_year": year,
+#         "from_week": week,
+#         "from_weekday": weekday,
+#         "from_dayslot": from_dayslot,
+#         "to_year": year,
+#         "to_week": week,
+#         "to_weekday": weekday,
+#         "to_dayslot": to_dayslot,
+#     }
+#     for ressource_kind in ["teachers", "rooms"]:
+#         tracked_ress = tracked_ressources[ressource_kind]
+#         ressources = row[ressource_kind]
+#         if ressources == "":
+#             ressources = []
+#         else:
+#             ressources = [t.strip() for t in ressources.split(",")]
+#         for ressource in ressources:
+#             if ressource in tracked_ress:
+#                 ressource_existing_intervals[ressource_kind][ressource].append(act)
 
-    if row.school == school:
-        for students in [s.strip() for s in row.students.split(",")]:
-            if students in students_existing_intervals.keys():
-                students_existing_intervals[students].append(act)
+#     if row.school == school:
+#         for students in [s.strip() for s in row.students.split(",")]:
+#             if students in students_existing_intervals.keys():
+#                 students_existing_intervals[students].append(act)
 
 # 3. MERGE THE FUCK
-teacher_data.append({})
-for teacher, acts in ressource_existing_intervals["teachers"].items():
-    if teacher not in teacher_data[-1].keys():
-        teacher_data[-1][teacher] = {"unavailable": []}
-    teacher_data[-1][teacher]["unavailable"] += acts
 
-for room, acts in ressource_existing_intervals["rooms"].items():
-    if room not in room_data.keys():
-        room_data[room] = {"unavailable": []}
-    room_data[room]["unavailable"] += acts
+# teacher_reverse_dict = {v["full_name"]: k for k, v in teacher_data.items()}
+teacher_data_fullnames = {v["full_name"]: v for k, v in teacher_data.items()}
 
-students_data = [calendar_data, {}]
+# for teacher, acts in ressource_existing_intervals["teachers"].items():
+#     if teacher not in teacher_data_fullnames.keys():
+#         teacher_data_fullnames[teacher] = {"full_name": teacher, "unavailable": []}
+#     teacher_data_fullnames[teacher]["unavailable"] += acts
+if extracted_constraints != None:
+    for teacher, acts in ressource_existing_intervals["teachers"].items():
+        if teacher in extracted_constraints["teachers"].keys():
+            teacher_data_fullnames[teacher]["unavailable"] += extracted_constraints[
+                "teachers"
+            ][teacher]["unavailable"]
+            print(f"Added existing constraints for teacher {teacher}")
+        else:
+            print(f"Teacher {teacher} has no existing constraints.")
 
-for students, acts in students_existing_intervals.items():
-    if students not in students_data[-1].keys():
-        students_data[-1][students] = {"unavailable": []}
-    students_data[-1][students]["unavailable"] += acts
+    # for room, acts in ressource_existing_intervals["rooms"].items():
+    #     if room not in room_data.keys():
+    #         room_data[room] = {"unavailable": []}
+    #     room_data[room]["unavailable"] += acts
+    room_data["constraints"] = {
+        k: {"unavailable": []} for k in tracked_ressources["rooms"]
+    }
+    for room, acts in ressource_existing_intervals["rooms"].items():
+        if room in extracted_constraints["rooms"].keys():
+            room_data["constraints"][room]["unavailable"] += extracted_constraints[
+                "rooms"
+            ][room]["unavailable"]
+            print(f"Added existing constraints for room {room}")
+        else:
+            print(f"Room {room} has no existing constraints.")
 
+    if False:
+        # new_d = {}
+        # for k, v in extracted_constraints["students"].items():
+        #     new_d[k] = {"unavailable": []}
+        #     for act in v["unavailable"]:
+        #         new_d[k]["unavailable"].append(act)
+        students_existing_intervals = [calendar_data, calendar_data]
+    else:
+        students_existing_intervals = [calendar_data, calendar_data]  # THIS IS DIRTY
+
+    # for students, acts in ressource_existing_intervals["students"].items():
+    #     if students not in students_existing_intervals[-1].keys():
+    #         students_data[-1][students] = {"unavailable": []}
+    #     students_existing_intervals[-1][students]["unavailable"] += acts
+else:
+    print("No extracted constraints found.")
+    students_existing_intervals = [calendar_data, calendar_data]  # THIS IS DIRTY
 
 # 4. CHECK STUFF
 for teacher, intervals in ressource_existing_intervals["teachers"].items():
@@ -246,15 +205,14 @@ for teacher, intervals in ressource_existing_intervals["teachers"].items():
 
 
 # TEACHER UNAVAILABILITY
-teacher_unavailable_intervals = [
-    create_unavailable_constraints(
-        model, data=teacher_data[i], start_day=START_DAY, horizon=horizon
-    )
-    for i in range(len(teacher_data))
-]
+teacher_unavailable_intervals = create_unavailable_constraints(
+    model, data=teacher_data_fullnames, start_day=ORIGIN_DATETIME, horizon=HORIZON
+)
+
+
 # ROOM UNAVAILABILITY
 room_unavailable_intervals = create_unavailable_constraints(
-    model, data=room_data, start_day=START_DAY, horizon=horizon
+    model, data=room_data, start_day=ORIGIN_DATETIME, horizon=HORIZON
 )
 
 # NIGHT SHIFTS & LUNCH BREAKS AND WEEK-ENDS!
@@ -266,7 +224,10 @@ weekly_unavailable_intervals = create_weekly_unavailable_intervals(
 # students_data = students_data[:1] # ATTENTION TEST A RETIRER
 students_unavailable_intervals = [
     create_unavailable_constraints(
-        model, data=students_data[i], start_day=START_DAY, horizon=horizon
+        model,
+        data=students_existing_intervals[i],
+        start_day=ORIGIN_DATETIME,
+        horizon=HORIZON,
     )
     for i in range(len(students_data))
 ]
@@ -276,184 +237,111 @@ students_unavailable_intervals = [
 students_atomic_groups = np.unique(
     np.concatenate([v for k, v in students_groups.items()])
 )
-matrices = {
-    k: np.zeros(96 * 7 * MAX_WEEKS).astype(np.int32) for k in students_atomic_groups
-}
-for i in range(len(students_data)):
-    for group, intervals in students_data[i].items():
-        for interval in intervals["unavailable"]:
-            from_week = interval["from_week"]
-            to_week = interval["to_week"]
-            from_weekday = interval["from_weekday"]
-            to_weekday = interval["to_weekday"]
-            start = (
-                672 * (from_week - 1)
-                + 96 * (from_weekday - 1)
-                + interval["from_dayslot"]
-            )
-            end = 672 * (to_week - 1) + 96 * (to_weekday - 1) + interval["to_dayslot"]
-            for student in students_groups[group]:
-                matrices[student][start:end] += 1
-
-for agroup, matrix in matrices.items():
-    d = 1
-    w = 1
-    with open(
-        f"./outputs/students_unavailability_matrix_{agroup}.txt", "w", encoding="utf-8"
-    ) as f:
-        for r in matrix.reshape(-1, 96):
-            f.write(f"w{w}-d{d} " + "".join([str(rr) for rr in r]) + "\n")
-            d += 1
-            if d == 8:
-                w += 1
-                d = 1
 
 
-activities_kinds = {
-    "CM": {"allowed_start_time_slots": [33, 40, 53, 60, 67]},
-    "TD": {"allowed_start_time_slots": [33, 40, 53, 60, 67]},
-    "CM_YM": {"allowed_start_time_slots": [40, 53, 60]},  # CM YANNICK MUGNIER
-    "TD_YM": {"allowed_start_time_slots": [40, 53, 60]},  # TD YANNICK MUGNIER
-    "TD_MB": {"allowed_start_time_slots": [46]},  # TD MICKAEL BOREL  # 46
-    "EX": {"allowed_start_time_slots": [33, 40, 53, 60, 67]},
-    "TP": {"allowed_start_time_slots": [32, 53, 57]},
-}
+def write_student_unavailability_matrices():
+    matrices = {
+        k: np.zeros(TIME_SLOTS_PER_WEEK * MAX_WEEKS).astype(np.int32)
+        for k in students_atomic_groups
+    }
+    for i in range(len(students_data)):
+        for group, intervals in students_existing_intervals[i].items():
+            for interval in intervals["unavailable"]:
+                if interval["kind"] == "isocalendar":
+                    from_week = interval["from_week"]
+                    to_week = interval["to_week"]
+                    from_weekday = interval["from_weekday"]
+                    to_weekday = interval["to_weekday"]
+                    start = (
+                        TIME_SLOTS_PER_WEEK * (from_week - 1)
+                        + TIME_SLOTS_PER_DAY * (from_weekday - 1)
+                        + interval["from_dayslot"]
+                    )
+                    end = (
+                        TIME_SLOTS_PER_WEEK * (to_week - 1)
+                        + TIME_SLOTS_PER_DAY * (to_weekday - 1)
+                        + interval["to_dayslot"]
+                    )
+                elif interval["kind"] == "datetime":
+                    start_datetime = DateTime.from_str(interval["start"])
+                    end_datetime = DateTime.from_str(interval["end"])
+                    start = math.floor(
+                        (start_datetime - ORIGIN_DATETIME).to_slots(
+                            slot_duration=TIME_SLOT_DURATION
+                        )
+                    )
+                    end = math.ceil(
+                        (end_datetime - ORIGIN_DATETIME).to_slots(
+                            slot_duration=TIME_SLOT_DURATION
+                        )
+                    )
+                for student in students_groups[group]:
+                    matrices[student][start:end] += 1
 
-# activities_kinds = {
-#     "CM": {
-#         "allowed_start_time_slots": range(96)
-#     },
-#     "TD": {
-#         "allowed_start_time_slots": range(96)
-#     },
-#     "EX": {
-#         "allowed_start_time_slots": range(96)
-#     },
-#     "TP": {
-#         "allowed_start_time_slots": range(96)
-#     }
-# }
+    for agroup, matrix in matrices.items():
+        d = 1
+        w = ORIGIN_DATETIME.isocalendar().week
+        with open(
+            f"{output_dir}/students_unavailability_matrix_{agroup}.txt",
+            "w",
+            encoding="utf-8",
+        ) as f:
+            for r in matrix.reshape(-1, TIME_SLOTS_PER_DAY):
+                f.write(f"w{w}-d{d} " + "".join([str(rr) for rr in r]) + "\n")
+                d += 1
+                if d == DAYS_PER_WEEK + 1:
+                    w += 1
+                    d = 1
 
-atomic_students_unavailable_intervals = create_activities(
+
+write_student_unavailability_matrices()
+# ACTIVITIES
+
+(
+    atomic_students_unavailable_intervals,
+    teacher_unavailable_intervals,
+    room_unavailable_intervals,
+    students_unavailable_intervals,
+    weekly_unavailable_intervals,
+) = create_activities(
     activity_data,
     model,
     students_groups,
-    horizon=horizon,
+    horizon=HORIZON,
     teacher_unavailable_intervals=teacher_unavailable_intervals,
     room_unavailable_intervals=room_unavailable_intervals,
     students_unavailable_intervals=students_unavailable_intervals,
     weekly_unavailable_intervals=weekly_unavailable_intervals,
     activities_kinds=activities_kinds,
-    # cm_td_allowed_slots=[33, 40, 53, 60, 67],
+    origin_datetime=ORIGIN_DATETIME,
+    slot_duration=TIME_SLOT_DURATION,
 )
 
-# MINIMIZE SEMESTER DURATION or WEEK DURATION
-
-
-# 1. SEMESTER DURATION
-def get_semester_duration(model, activity_data, students_groups, horizon):
-    activities_ends = []
-    for file, module in activity_data.items():
-        for label, activity in module["activities"].items():
-            if activity["kind"] != "lunch":
-                activities_ends.append(activity["model"]["end"])
-    makespan = model.NewIntVar(0, horizon, "makespan")
-    model.AddMaxEquality(makespan, activities_ends)
-    return makespan
-
-
-# 2. WEEK DURATION AND ABSOLUTE DEVIATION FROM MEAN WEEK DURATION
-def get_absolute_week_duration_deviation(
-    model, activity_data, students_groups, horizon, MAX_WEEKS
-):
-    week_duration = {
-        group: [[] for i in range(MAX_WEEKS)] for group in students_atomic_groups
-    }
-    total_activities_duration = {group: 0 for group in students_atomic_groups}
-    for file, module in activity_data.items():
-        for label, activity in module["activities"].items():
-            # if activity["kind"] != "lunch":
-            #     activities_ends.append(activity["model"]["end"])
-            start = activity["model"]["start"]
-            end = activity["model"]["end"]
-            # duration = end - start
-            duration = activity["duration"]
-            for group in students_groups[activity["students"]]:
-                total_activities_duration[group] += duration
-            week = model.NewIntVar(0, 100, "makespan")
-            model.AddDivisionEquality(week, start, 672)
-            # week_duration[model.getOr ] += duration
-            # for i, c in enumerate(week_duration):
-            for i in range(MAX_WEEKS):
-                is_week = model.NewBoolVar("is_week")
-                model.Add(week == i).OnlyEnforceIf(is_week)
-                model.Add(week != i).OnlyEnforceIf(is_week.Not())
-                duration_on_week = model.NewIntVar(0, 672, "duration_on_week")
-                model.Add(duration_on_week == duration).OnlyEnforceIf(is_week)
-                model.Add(duration_on_week == 0).OnlyEnforceIf(is_week.Not())
-                # model.Add(duration_on_week == 0 )
-                for group in students_groups[activity["students"]]:
-                    week_duration[group][i].append(duration_on_week)
-    # Remove empty groups:
-    week_duration_curated = {}
-    for group, wd in week_duration.items():
-        l = sum([len(d) for d in wd])
-        if l != 0:
-            week_duration_curated[group] = wd
-
-    # week_duration_sums = [sum([d for d in wd]) for group, wd in week_duration.items()]
-    week_duration_sums = []
-    week_duration_residuals = []
-    for group, wd in week_duration_curated.items():
-        total_duration_per_group = 0
-        for nw, w in enumerate(wd):
-            if len(w) != 0:
-                week_duration_sums.append(sum(w))
-                total_duration_per_group += sum(w)
-            else:
-                week_duration_sums.append(0)
-        mean_week_duration = model.NewIntVar(0, 672, f"mean_week_duration_{group}")
-        # print(group, wd)
-        # print(group, len(wd), total_duration_per_group)
-        model.AddDivisionEquality(
-            mean_week_duration, total_activities_duration[group], len(wd)
-        )
-        for w in wd:
-            week_duration = sum(w)
-            abs_week_residual = model.NewIntVar(0, 672, "mean_week_duration")
-            positive_residual = model.NewBoolVar("mean_week_duration")
-            model.Add(week_duration - mean_week_duration >= 0).OnlyEnforceIf(
-                positive_residual
-            )
-            model.Add(week_duration - mean_week_duration < 0).OnlyEnforceIf(
-                positive_residual.Not()
-            )
-            model.Add(
-                abs_week_residual == week_duration - mean_week_duration
-            ).OnlyEnforceIf(positive_residual)
-            model.Add(
-                abs_week_residual == mean_week_duration - week_duration
-            ).OnlyEnforceIf(positive_residual.Not())
-            week_duration_residuals.append(abs_week_residual)
-    makespan = model.NewIntVar(0, horizon, "makespan")
-    model.Add(makespan == sum(week_duration_residuals))
-
-    return makespan
-
-
-# makespan = model.NewIntVar(0, horizon, "makespan")
-# #model.AddMaxEquality(makespan, activities_ends)
-# #model.AddMaxEquality(makespan, week_duration_sums)
-# #makespan = sum([d**2 for d in week_duration_sums])
-# model.Add(makespan == sum(week_duration_residuals))
+# COST FUNCTION
 makespan = get_absolute_week_duration_deviation(
-    model, activity_data, students_groups, horizon, MAX_WEEKS=MAX_WEEKS
+    model,
+    activity_data,
+    students_groups,
+    students_atomic_groups,
+    horizon=HORIZON,
+    max_weeks=MAX_WEEKS,
 )
 model.Minimize(makespan)
 
-# Solve model.
+# CHECK MODEL INTEGRITY
+print("CHECK MODEL INTEGRITY")
+out = model.Validate()
+if out == "":
+    print(f"  => Model is  valid: {Messages.SUCCESS}")
+else:
+    print(f"Model is not valid: {Messages.ERROR}")
+    print(out)
+
+
+# Solve model
+print("SOLVING ...")
 solver = cp_model.CpSolver()
-solver.parameters.max_time_in_seconds = 54000  # 54000 = 15h
+solver.parameters.max_time_in_seconds = 120  # 54000 = 15h
 solver.parameters.num_search_workers = 16
 # solver.parameters.log_search_progress = True
 
@@ -468,18 +356,16 @@ print(solver.ResponseStats())
 print(f"Elapsed time: {t1-t0:.2f} s")
 
 if not solver_final_status == "INFEASIBLE":
-
+    print(f"  => Solution found: {Messages.SUCCESS}")
     solution = export_solution(
         activity_data,
         model,
         solver,
         students_groups,
         week_structure=WEEK_STRUCTURE,
-        start_day=START_DAY,
+        start_day=ORIGIN_DATETIME,
     )
-    xlsx_path = "outputs/schedule.xlsx"
-    if not os.path.isdir("./outputs"):
-        os.mkdir("outputs")
+    xlsx_path = f"{output_dir}/schedule.xlsx"
 
     export_student_schedule_to_xlsx(
         xlsx_path,
@@ -490,7 +376,9 @@ if not solver_final_status == "INFEASIBLE":
         column_width=25,
     )
     # MODULES
-    writer = pd.ExcelWriter(f"outputs/modules_activities.xlsx", engine="xlsxwriter")
+    writer = pd.ExcelWriter(
+        f"{output_dir}/modules_activities.xlsx", engine="xlsxwriter"
+    )
     unique_modules = solution.module.unique()
     unique_modules.sort()
     for module in unique_modules:
@@ -530,14 +418,11 @@ if not solver_final_status == "INFEASIBLE":
         tag = f"A2:N{nrows}"
         worksheet.autofilter(tag)
 
-    if not os.path.isdir("./outputs"):
-        os.mkdir("outputs")
-
     writer.close()
 
     # MODULES PLANIFICATION
     writer = pd.ExcelWriter(
-        "outputs/modules_activities_planification.xlsx", engine="xlsxwriter"
+        f"{output_dir}/modules_activities_planification.xlsx", engine="xlsxwriter"
     )
     unique_modules = solution.module.unique()
     unique_modules.sort()
@@ -583,7 +468,7 @@ if not solver_final_status == "INFEASIBLE":
     # RESSOURCES
     for ressources in ["teachers", "rooms"]:
         writer = pd.ExcelWriter(
-            f"outputs/{ressources}_activities.xlsx", engine="xlsxwriter"
+            f"{output_dir}/{ressources}_activities.xlsx", engine="xlsxwriter"
         )
         unique_ressources = np.unique(np.concatenate(solution[ressources].values))
         unique_ressources.sort()
@@ -631,3 +516,5 @@ if not solver_final_status == "INFEASIBLE":
             worksheet.autofilter(tag)
 
         writer.close()
+else:
+    print(f"  => No solution found: {Messages.FAIL}")

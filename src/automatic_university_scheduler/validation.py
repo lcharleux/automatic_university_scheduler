@@ -1,6 +1,7 @@
 import pandas as pd
 from string import Template
 import networkx as nx
+from automatic_university_scheduler.utils import Messages, Colors
 
 _mermaid_flow_template = r"""
 <html lang="fr">
@@ -22,27 +23,6 @@ $TITLE
 </body>
 </html>
 """
-
-
-class Colors:
-    RED = "\033[91m"
-    GREEN = "\033[92m"
-    YELLOW = "\033[93m"
-    BLUE = "\033[94m"
-    MAGENTA = "\033[95m"
-    CYAN = "\033[96m"
-    WHITE = "\033[97m"
-    OFF = "\033[0m"
-
-
-class Messages:
-    SUCCESS = f"{Colors.GREEN}SUCCESS{Colors.OFF}"
-    WARNING = f"{Colors.YELLOW}WARNING{Colors.OFF}"
-    ERROR = f"{Colors.RED}ERROR{Colors.OFF}"
-    INFO = f"{Colors.BLUE}INFO{Colors.OFF}"
-    CYCLE = f"{Colors.MAGENTA}CYCLE{Colors.OFF}"
-    SOURCE = f"{Colors.CYAN}SOURCE{Colors.OFF}"
-    SINK = f"{Colors.CYAN}SINK{Colors.OFF}"
 
 
 def constraints_to_mermaid_graph(constraints: list) -> str:

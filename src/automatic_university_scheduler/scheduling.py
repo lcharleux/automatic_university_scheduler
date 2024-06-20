@@ -6,6 +6,14 @@ import pandas as pd
 import os
 from scipy import ndimage
 import json
+from automatic_university_scheduler.datetime import (
+    DateTime,
+    TimeDelta,
+    TimeInterval,
+    read_time_intervals,
+    datetime_to_slot,
+)
+import yaml
 
 DAYS_NAMES = [
     "Monday",
@@ -273,6 +281,8 @@ class SolutionPrinter(cp_model.CpSolverSolutionCallback):
 
 def read_json_data(directory="", contains=None):
     all_data = {}
+    if not directory.endswith("/"):
+        directory += "/"
     for file in os.listdir(directory):
         if file.endswith(".json"):
             if contains != None:
@@ -290,11 +300,7 @@ def read_json_data(directory="", contains=None):
 
 
 def create_unavailable_constraints(
-    model,
-    data={},
-    prefix="Unavailable",
-    start_day=datetime.date.fromisocalendar(2023, 1, 1),
-    horizon=8736,
+    model, start_day, data={}, prefix="Unavailable", horizon=10000, slots_per_day=96
 ):
     """
     Unavailable constraints.
@@ -304,6 +310,9 @@ def create_unavailable_constraints(
         if "unavailable" in ldata_list.keys():
             for ldata in ldata_list["unavailable"]:
                 if ldata["kind"] == "isocalendar":
+                    print(
+                        f"Warning: using legacy unavailable on {label} constraints definition."
+                    )
                     from_year = ldata["from_year"]
                     from_week = ldata["from_week"]
                     from_weekday = ldata["from_weekday"]
@@ -318,7 +327,7 @@ def create_unavailable_constraints(
                         weekday=from_weekday,
                         dayslot=from_dayslot,
                         start_date=start_day,
-                        slots_per_day=96,
+                        slots_per_day=slots_per_day,
                     )
                     to_slot = isocalendar_to_slot(
                         year=to_year,
@@ -326,42 +335,71 @@ def create_unavailable_constraints(
                         weekday=to_weekday,
                         dayslot=to_dayslot,
                         start_date=start_day,
-                        slots_per_day=96,
+                        slots_per_day=slots_per_day,
                     )
 
-                if "repeat" not in ldata.keys():
-                    repeat = 1
-                else:
-                    repeat = ldata["repeat"]
-                if "repeat_pad" not in ldata.keys():
-                    repeat_pad = 672
-                else:
-                    repeat_pad = ldata["repeat_pad"]
-                iteration = 0
-                while iteration < repeat:
-                    from_slot_repeat = max(from_slot, 0)
-                    from_slot_repeat = min(from_slot_repeat, horizon)
-                    to_slot_repeat = max(to_slot, 0)
-                    to_slot_repeat = min(to_slot_repeat, horizon)
-                    if from_slot_repeat < to_slot_repeat:
-                        # duration = to_slot - from_slot
-                        interval_label = f"Unavailable_{label}_{from_slot_repeat}_{to_slot_repeat}_{repeat}"
-                        start = from_slot_repeat + iteration * repeat_pad
-                        end = to_slot_repeat + iteration * repeat_pad
-                        start = min(start, horizon)
-                        end = min(end, horizon)
+                    if "repeat" not in ldata.keys():
+                        repeat = 1
+                    else:
+                        repeat = ldata["repeat"]
+                    if "repeat_pad" not in ldata.keys():
+                        repeat_pad = slots_per_day * 7
+                    else:
+                        repeat_pad = ldata["repeat_pad"]
+                    iteration = 0
+                    while iteration < repeat:
+                        from_slot_repeat = max(from_slot, 0)
+                        from_slot_repeat = min(from_slot_repeat, horizon)
+                        to_slot_repeat = max(to_slot, 0)
+                        to_slot_repeat = min(to_slot_repeat, horizon)
+                        if from_slot_repeat < to_slot_repeat:
+                            # duration = to_slot - from_slot
+                            interval_label = f"{prefix}_{label}_{from_slot_repeat}_{to_slot_repeat}_{repeat}"
+                            start = from_slot_repeat + iteration * repeat_pad
+                            end = to_slot_repeat + iteration * repeat_pad
+                            start = min(start, horizon)
+                            end = min(end, horizon)
+                            duration = end - start
+                            if start < end:
+                                interval = model.NewIntervalVar(
+                                    start,
+                                    duration,
+                                    end,
+                                    interval_label,
+                                )
+                                if label not in intervals.keys():
+                                    intervals[label] = []
+                                intervals[label].append(interval)
+                        iteration += 1
+                elif ldata["kind"] == "datetime":
+                    origin_datetime = start_day
+                    slot_duration = TimeDelta(days=1) / slots_per_day
+                    horizon_datetime = origin_datetime + horizon * slot_duration
+                    ldata2 = {k: v for k, v in ldata.items() if k != "kind"}
+                    # ldata2["origin_datetime"] = start_day
+                    time_intervals = read_time_intervals(**ldata2)
+                    slots_intervals = []
+                    for ti in time_intervals:
+                        slots = ti.to_slots(
+                            origin_datetime, horizon_datetime, slot_duration
+                        )
+                        if slots != None:
+                            slots_intervals.append(slots)
+
+                    for slot_id, slots in enumerate(slots_intervals):
+                        start = slots[0]
+                        end = slots[1]
                         duration = end - start
-                        if start < end:
-                            interval = model.NewIntervalVar(
-                                start,
-                                duration,
-                                end,
-                                interval_label,
-                            )
-                            if label not in intervals.keys():
-                                intervals[label] = []
-                            intervals[label].append(interval)
-                    iteration += 1
+                        interval_label = f"{prefix}_{label}_{start}_{end}_R{slot_id}"
+                        interval = model.NewIntervalVar(
+                            start,
+                            duration,
+                            end,
+                            interval_label,
+                        )
+                        if label not in intervals.keys():
+                            intervals[label] = []
+                        intervals[label].append(interval)
 
     return intervals
 
@@ -371,10 +409,10 @@ def isocalendar_to_slot(
     week=1,
     weekday=1,
     dayslot=0,
-    start_date=datetime.date.fromisocalendar(2022, 1, 1),
+    start_date=DateTime.fromisocalendar(2022, 1, 1),
     slots_per_day=96,
 ):
-    date = datetime.date.fromisocalendar(year, week, weekday)
+    date = DateTime.fromisocalendar(year, week, weekday)
     delta_days = (date - start_date).days
     return delta_days * slots_per_day + dayslot
 
@@ -519,9 +557,9 @@ def create_activities(
     room_unavailable_intervals,
     students_unavailable_intervals,
     weekly_unavailable_intervals,
-    # cm_td_allowed_slots=[32, 39, 46, 53, 60, 67],
-    # tp_allowed_slots=[32, 53, 57],
     activities_kinds,
+    origin_datetime,
+    slot_duration,
 ):
     unique_teachers, unique_rooms = get_unique_teachers_and_rooms(activity_data)
     atomic_students_groups = get_atomic_students_groups(students_groups)
@@ -546,7 +584,6 @@ def create_activities(
             end = model.NewIntVar(0, horizon, "end_" + label)
             duration = activity["duration"]
             interval = model.NewIntervalVar(start, duration, end, "interval" + label)
-            # after_list = activity["after"]
             model.Add(end == start + duration)
             teachers = activity["teachers"]
             rooms = activity["rooms"]
@@ -650,6 +687,18 @@ def create_activities(
             if "max_start_slot" in activity.keys():
                 if activity["max_start_slot"] != None:
                     model.Add(start <= activity["max_start_slot"])
+            if "earliest_datetime" in activity.keys():
+                earliest_datetime = DateTime(activity["earliest_datetime"])
+                earliest_slot = datetime_to_slot(
+                    earliest_datetime, origin_datetime, slot_duration, round="ceil"
+                )
+                model.Add(start >= earliest_slot)
+            if "latest_datetime" in activity.keys():
+                latest_datetime = DateTime(activity["latest_datetime"])
+                latest_slot = datetime_to_slot(
+                    latest_datetime, origin_datetime, slot_duration, round="floor"
+                )
+                model.Add(start <= latest_slot)
 
             # ALLOWED START SLOTS PER ACTIVITY KIND
 
@@ -665,34 +714,6 @@ def create_activities(
             for forbidden_slot in activity_forbidden_slots:
                 model.Add(start_m96 != forbidden_slot)
 
-            # # ALLOWED CM AND TD START SLOTS: TO IMPROVE
-            # if activity["kind"] in ["TD", "CM", "EX"]:
-            #     start_m96 = model.NewIntVar(0, horizon, f"start_mod_96_{alabel}")
-            #     model.AddModuloEquality(start_m96, start, 96)
-            #     all_slots = np.arange(96)
-            #     cm_td_forbidden_slots = list(set(all_slots) - set(cm_td_allowed_slots))
-            #     for forbidden_slot in cm_td_forbidden_slots:
-            #         model.Add(start_m96 != forbidden_slot)
-
-            # # ALLOWED TP START SLOTS: TO IMPROVE
-            # if activity["kind"] in ["TP"]:
-            #     start_m96 = model.NewIntVar(0, horizon, f"start_mod_96_{alabel}")
-            #     model.AddModuloEquality(start_m96, start, 96)
-            #     all_slots = np.arange(96)
-            #     tp_forbidden_slots = list(set(all_slots) - set(tp_allowed_slots))
-            #     for forbidden_slot in tp_forbidden_slots:
-            #         model.Add(start_m96 != forbidden_slot)
-
-            # # ALLOWED LUNCH START SLOTS: TO IMPROVE
-            # if activity["kind"] in ["lunch"]:
-            #     start_m96 = model.NewIntVar(0, horizon, f"start_mod_96_{alabel}")
-            #     model.AddModuloEquality(start_m96, start, 96)
-            #     lunch_allowed_slots = [46, 47, 48, 49, 50, 51, 52, 53]
-            #     all_slots = np.arange(96)
-            #     lunch_forbidden_slots = list(set(all_slots) - set(lunch_allowed_slots))
-            #     for forbidden_slot in lunch_forbidden_slots:
-            #         model.Add(start_m96 != forbidden_slot)
-
             if "forbidden_weekdays" in activity.keys():
                 forbidden_days = activity["forbidden_weekdays"]
                 weeksstart = model.NewIntVar(0, horizon, f"weekstart_{alabel}")
@@ -702,16 +723,27 @@ def create_activities(
                 for fb in forbidden_days:
                     model.Add(weekday != fb - 1)
 
-    for teacher_unavailable_subintervals in teacher_unavailable_intervals:
-        for teacher, intervals in teacher_intervals.items():
-            if len(intervals) > 1:
-                if teacher in teacher_unavailable_subintervals.keys():
-                    all_intervals = (
-                        intervals + teacher_unavailable_subintervals[teacher]
-                    )
-                else:
-                    all_intervals = intervals
-                model.AddNoOverlap(all_intervals)
+    # THIS MUST BE WRONG
+    # for teacher_unavailable_subintervals in teacher_unavailable_intervals:
+    #     for teacher, intervals in teacher_intervals.items():
+    #         if len(intervals) > 1:
+    #             print(teacher_unavailable_subintervals)
+    #             if teacher in teacher_unavailable_subintervals.keys():
+    #                 all_intervals = (
+    #                     intervals + teacher_unavailable_subintervals[teacher]
+    #                 )
+    #             else:
+    #                 all_intervals = intervals
+    #             model.AddNoOverlap(all_intervals)
+
+    for teacher, intervals in teacher_intervals.items():
+        if len(intervals) > 0:
+            model.AddNoOverlap(intervals)
+            # print("HEREEEEE", teacher_unavailable_intervals)
+            if teacher in teacher_unavailable_intervals.keys():
+                for interval in intervals:
+                    for unavaible_interval in teacher_unavailable_intervals[teacher]:
+                        model.AddNoOverlap([unavaible_interval, interval])
 
     for student, intervals in students_intervals.items():
         if len(intervals) > 1:
@@ -742,7 +774,13 @@ def create_activities(
             else:
                 all_intervals = intervals
             model.AddNoOverlap(all_intervals)
-    return atomic_students_unavailable_intervals
+    return (
+        atomic_students_unavailable_intervals,
+        teacher_unavailable_intervals,
+        room_unavailable_intervals,
+        students_unavailable_intervals,
+        weekly_unavailable_intervals,
+    )
 
 
 def export_student_schedule_to_xlsx(
@@ -848,3 +886,140 @@ def day_slot_to_time(slot):
     hour = str(slot // 4).zfill(2)
     minutes = str((slot % 4) * 15).zfill(2)
     return f"{hour}:{minutes}"
+
+
+def get_semester_duration(model, activity_data, students_groups, horizon):
+    """
+    Returns the duration of the semester.
+    """
+    activities_ends = []
+    for file, module in activity_data.items():
+        for label, activity in module["activities"].items():
+            if activity["kind"] != "lunch":
+                activities_ends.append(activity["model"]["end"])
+    makespan = model.NewIntVar(0, horizon, "makespan")
+    model.AddMaxEquality(makespan, activities_ends)
+    return makespan
+
+
+def get_absolute_week_duration_deviation(
+    model,
+    activity_data,
+    students_groups,
+    students_atomic_groups,
+    horizon,
+    max_weeks,
+    slots_per_week=672,
+):
+    """
+    Returns the absolute deviation from the mean week duration of each atomic student group.
+    """
+    week_duration = {
+        group: [[] for i in range(max_weeks)] for group in students_atomic_groups
+    }
+    total_activities_duration = {group: 0 for group in students_atomic_groups}
+    for file, module in activity_data.items():
+        for label, activity in module["activities"].items():
+            start = activity["model"]["start"]
+            end = activity["model"]["end"]
+            duration = activity["duration"]
+            for group in students_groups[activity["students"]]:
+                total_activities_duration[group] += duration
+            week = model.NewIntVar(0, max_weeks, "makespan")
+            model.AddDivisionEquality(week, start, 672)
+            for i in range(max_weeks):
+                is_week = model.NewBoolVar("is_week")
+                model.Add(week == i).OnlyEnforceIf(is_week)
+                model.Add(week != i).OnlyEnforceIf(is_week.Not())
+                duration_on_week = model.NewIntVar(
+                    0, slots_per_week, "duration_on_week"
+                )
+                model.Add(duration_on_week == duration).OnlyEnforceIf(is_week)
+                model.Add(duration_on_week == 0).OnlyEnforceIf(is_week.Not())
+                for group in students_groups[activity["students"]]:
+                    week_duration[group][i].append(duration_on_week)
+    # Remove empty groups:
+    week_duration_curated = {}
+    for group, wd in week_duration.items():
+        l = sum([len(d) for d in wd])
+        if l != 0:
+            week_duration_curated[group] = wd
+
+    week_duration_sums = []
+    week_duration_residuals = []
+    for group, wd in week_duration_curated.items():
+        total_duration_per_group = 0
+        for nw, w in enumerate(wd):
+            if len(w) != 0:
+                week_duration_sums.append(sum(w))
+                total_duration_per_group += sum(w)
+            else:
+                week_duration_sums.append(0)
+        mean_week_duration = model.NewIntVar(
+            0, slots_per_week, f"mean_week_duration_{group}"
+        )
+        model.AddDivisionEquality(
+            mean_week_duration, total_activities_duration[group], len(wd)
+        )
+        for w in wd:
+            week_duration = sum(w)
+            abs_week_residual = model.NewIntVar(0, slots_per_week, "mean_week_duration")
+            positive_residual = model.NewBoolVar("mean_week_duration")
+            model.Add(week_duration - mean_week_duration >= 0).OnlyEnforceIf(
+                positive_residual
+            )
+            model.Add(week_duration - mean_week_duration < 0).OnlyEnforceIf(
+                positive_residual.Not()
+            )
+            model.Add(
+                abs_week_residual == week_duration - mean_week_duration
+            ).OnlyEnforceIf(positive_residual)
+            model.Add(
+                abs_week_residual == mean_week_duration - week_duration
+            ).OnlyEnforceIf(positive_residual.Not())
+            week_duration_residuals.append(abs_week_residual)
+    makespan = model.NewIntVar(0, horizon, "makespan")
+    model.Add(makespan == sum(week_duration_residuals))
+    return makespan
+
+
+def load_setup(path):
+    """
+    Load the setup file.
+    """
+    with open(path) as f:
+        data = yaml.safe_load(f)
+    out = {}
+    out["WEEK_STRUCTURE"] = WEEK_STRUCTURE = read_week_structure(data["WEEK_STRUCTURE"])
+    ONE_WEEK = TimeDelta.from_str("1w")
+    ONE_DAY = TimeDelta.from_str("1d")
+    out["WEEK_STRUCTURE"] = read_week_structure(data["WEEK_STRUCTURE"])
+    out["DAYS_PER_WEEK"], out["TIME_SLOTS_PER_DAY"] = out["WEEK_STRUCTURE"].shape
+    out["ORIGIN_DATETIME"] = DateTime.from_str(data["ORIGIN_DATETIME"])
+    out["HORIZON_DATETIME"] = DateTime.from_str(data["HORIZON_DATETIME"])
+    out["MAX_WEEKS"] = (out["HORIZON_DATETIME"] - out["ORIGIN_DATETIME"]) // ONE_WEEK
+    out["TIME_SLOT_DURATION"] = ONE_DAY / out["TIME_SLOTS_PER_DAY"]
+    out["TIME_SLOTS_PER_WEEK"] = out["DAYS_PER_WEEK"] * out["TIME_SLOTS_PER_DAY"]
+    out["HORIZON"] = out["MAX_WEEKS"] * out["TIME_SLOTS_PER_WEEK"]
+    out["ACTIVITIES_KINDS"] = data["ACTIVITIES_KINDS"]
+    return out
+
+
+def read_week_structure(data):
+    """
+    Reads the week structure from a list of strings, typically obtained from a YAML file.
+    Each string in the list represents a day and should contain a sequence of '0' and '1' characters
+    representing unavailable and available time slots, respectively. Spaces in the strings are ignored.
+
+    Parameters:
+    data (List[str]): The week structure data. Each string in the list represents a day and should contain
+                      a sequence of '0' and '1' characters representing unavailable and available time slots,
+                      respectively.
+
+    Returns:
+    np.array: A 2D numpy array of integers representing the week structure. Each row corresponds to a day
+              and each column corresponds to a time slot. A '1' indicates that the corresponding time slot
+              on the corresponding day is available, and a '0' indicates that it is not.
+    """
+    WEEK_STRUCTURE = np.array([list(day.replace(" ", "")) for day in data]).astype(int)
+    return WEEK_STRUCTURE

@@ -1,4 +1,5 @@
 import datetime
+import math
 
 
 class MetaTime:
@@ -8,6 +9,8 @@ class MetaTime:
     __mul__ = lambda self, value: self._propagate_type(super().__mul__(value))
     __sub__ = lambda self, value: self._propagate_type(super().__sub__(value))
     __neg__ = lambda self: self._propagate_type(super().__neg__())
+    __truediv__ = lambda self, value: self._propagate_type(super().__truediv__(value))
+    __rsub__ = lambda self, value: self._propagate_type(super().__rsub__(value))
 
     @classmethod
     def _propagate_type(cls, out):
@@ -109,11 +112,13 @@ class TimeDelta(MetaTime, datetime.timedelta):
     def __repr__(self) -> str:
         return f"{self.to_str()}"
 
-    def to_slots(self) -> int:
+    def to_slots(self, slot_duration=None) -> int:
         """
-        Convert a TimeDelta object to 15min slots.
+        Convert a TimeDelta object to slots. Default: 15min slots.
         """
-        return int(self.total_seconds() // 900)
+        if slot_duration is None:
+            slot_duration = TimeDelta(minutes=15)
+        return self.total_seconds() // slot_duration.total_seconds()
 
 
 class TimeInterval:
@@ -135,6 +140,28 @@ class TimeInterval:
     def duration(self) -> TimeDelta:
         return self.end - self.start
 
+    def to_slots(
+        self,
+        origin_datetime: DateTime,
+        horizon_datetime: DateTime,
+        slot_duration: TimeDelta,
+    ) -> tuple[int, int]:
+        """
+        Convert a TimeInterval object to 15min slots.
+        """
+        start = min(max(self.start, origin_datetime), horizon_datetime)
+        end = min(max(self.end, origin_datetime), horizon_datetime)
+        if start == end:  # If the interval is empty
+            return None
+        else:  # If the interval is not empty
+            start_slot = math.floor(
+                (start - origin_datetime).to_slots(slot_duration=slot_duration)
+            )
+            end_slot = math.ceil(
+                (end - origin_datetime).to_slots(slot_duration=slot_duration)
+            )
+            return start_slot, end_slot
+
 
 def read_time_intervals(
     start: str, end: str, repeat: int = 1, offset: str = "1w"
@@ -149,3 +176,17 @@ def read_time_intervals(
         TimeInterval(start + i * offset, end + i * offset) for i in range(repeat)
     ]
     return time_intervals
+
+
+def datetime_to_slot(
+    datetime: DateTime, origin_datetime: DateTime, slot_duration: TimeDelta, round=None
+) -> int:
+    """
+    Convert a DateTime object to a 15min slot.
+    """
+    slot = (datetime - origin_datetime).to_slots(slot_duration=slot_duration)
+    if round == "ceil":
+        return math.ceil(slot)
+    elif round == "floor":
+        return math.floor(slot)
+    return slot

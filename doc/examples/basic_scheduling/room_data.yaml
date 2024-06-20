@@ -6,7 +6,7 @@ room_pools:
   B106: ["A-POLY-B106"]
   amphi: ["A-POLY-B120"]
   amphi_x2: ["A-POLY-B120", "A-POLY-B014"]
-  big_info_rooms: 
+  big_info_rooms:
     - "A-POLY-A030"
     - "A-POLY-C202"
     - "A-POLY-C209"
@@ -35,7 +35,7 @@ default_rooms:
   MM-3-A-TD:
   - A-POLY-C110
   MM-3-B-TD:
-  - A-POLY-C104
+  - A-POLY-C110
   MM-3-C-TD:
   - A-POLY-A204
   SNI-3-D-TD:
