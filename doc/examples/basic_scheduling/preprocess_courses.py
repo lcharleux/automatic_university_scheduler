@@ -6,16 +6,18 @@ from automatic_university_scheduler.validation import (
 from automatic_university_scheduler.preprocessing import (
     create_course_activities,
     get_unique_ressources_in_activities,
+    get_unique_students_in_activities,
 )
 from automatic_university_scheduler.utils import create_directories
 from automatic_university_scheduler.scheduling import load_setup, read_json_data
-from automatic_university_scheduler.utils import dump_to_yaml
+from automatic_university_scheduler.utils import dump_to_yaml, read_from_yaml
 import yaml
 import pandas as pd
 import json
 import os
 import networkx as nx
 import matplotlib.pyplot as plt
+import numpy as np
 
 # SETUP
 setup = load_setup("setup.yaml")
@@ -27,11 +29,12 @@ MAX_WEEKS = setup["MAX_WEEKS"]
 
 
 # DATA
-room_data = yaml.safe_load(open("room_data.yaml"))
+room_data = read_from_yaml("room_data.yaml")
 default_rooms = room_data["default_rooms"]
 room_pools = room_data["room_pools"]
-teacher_data = yaml.safe_load(open("teacher_data.yaml"))
+teacher_data = read_from_yaml("teacher_data.yaml")
 teacher_full_names = {key: value["full_name"] for key, value in teacher_data.items()}
+student_data = read_from_yaml("student_data.yaml")
 
 # DIRECTORIES
 course_models_dir = "course_models"
@@ -95,9 +98,12 @@ for model in models:
             json.dump(course.to_dict(), f)
 
 activity_data = read_json_data(activities_dir)
+student_groups = np.array(list(student_data["groups"].keys()))
+student_groups = student_groups[student_groups != None]
 tracked_ressources = {
     "teachers": get_unique_ressources_in_activities(activity_data, kind="teachers"),
     "rooms": get_unique_ressources_in_activities(activity_data, kind="rooms"),
+    "students": student_groups,
 }
 ressource_existing_intervals = {
     k: {t: [] for t in tracked_ressources[k]} for k in ["teachers", "rooms"]

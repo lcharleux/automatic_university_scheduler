@@ -372,10 +372,18 @@ def create_unavailable_constraints(
                                 intervals[label].append(interval)
                         iteration += 1
                 elif ldata["kind"] == "datetime":
+                    if "description" not in ldata.keys():
+                        description = ""
+                    else:
+                        description = ldata["description"]
                     origin_datetime = start_day
                     slot_duration = TimeDelta(days=1) / slots_per_day
                     horizon_datetime = origin_datetime + horizon * slot_duration
-                    ldata2 = {k: v for k, v in ldata.items() if k != "kind"}
+                    ldata2 = {
+                        k: v
+                        for k, v in ldata.items()
+                        if k not in ["kind", "description"]
+                    }
                     # ldata2["origin_datetime"] = start_day
                     time_intervals = read_time_intervals(**ldata2)
                     slots_intervals = []
@@ -390,7 +398,9 @@ def create_unavailable_constraints(
                         start = slots[0]
                         end = slots[1]
                         duration = end - start
-                        interval_label = f"{prefix}_{label}_{start}_{end}_R{slot_id}"
+                        interval_label = (
+                            f"{prefix}_{description}_{label}_{start}_{end}_R{slot_id}"
+                        )
                         interval = model.NewIntervalVar(
                             start,
                             duration,
@@ -567,16 +577,22 @@ def create_activities(
     room_intervals = {r: [] for r in unique_rooms}
     students_intervals = {s: [] for s in atomic_students_groups}
     students_lunch_intervals = {s: [] for s in atomic_students_groups}
-    atomic_students_unavailable_intervals = []
+    atomic_students_unavailable_intervals = {}
 
-    for students_unavailable_subintervals in students_unavailable_intervals:
-        atomic_students_unavailable_intervals.append({})
-        for group, intervals in students_unavailable_subintervals.items():
-            agroups = students_groups[group]
-            for agroup in agroups:
-                if agroup not in atomic_students_unavailable_intervals[-1].keys():
-                    atomic_students_unavailable_intervals[-1][agroup] = []
-                atomic_students_unavailable_intervals[-1][agroup] += intervals
+    # for students_unavailable_subintervals in students_unavailable_intervals:
+    #     atomic_students_unavailable_intervals.append({})
+    #     for group, intervals in students_unavailable_subintervals.items():
+    #         agroups = students_groups[group]
+    #         for agroup in agroups:
+    #             if agroup not in atomic_students_unavailable_intervals[-1].keys():
+    #                 atomic_students_unavailable_intervals[-1][agroup] = []
+    #             atomic_students_unavailable_intervals[-1][agroup] += intervals
+    for group, intervals in students_unavailable_intervals.items():
+        atomic_groups = students_groups[group]
+        for atomic_group in atomic_groups:
+            if atomic_group not in atomic_students_unavailable_intervals.keys():
+                atomic_students_unavailable_intervals[atomic_group] = []
+            atomic_students_unavailable_intervals[atomic_group] += intervals
 
     for file, module in activity_data.items():
         for label, activity in module["activities"].items():
@@ -747,25 +763,40 @@ def create_activities(
 
     for student, intervals in students_intervals.items():
         if len(intervals) > 1:
-            all_intervals = intervals + weekly_unavailable_intervals
-            model.AddNoOverlap(all_intervals)
+            model.AddNoOverlap(intervals)
+            for interval in intervals:
+                for weekly_unavailable_interval in weekly_unavailable_intervals:
+                    model.AddNoOverlap([interval, weekly_unavailable_interval])
+                for student_lunch_interval in students_lunch_intervals[student]:
+                    model.AddNoOverlap([interval, student_lunch_interval])
+                # print(students_unavailable_intervals.keys())
+                for (
+                    atomic_student_unavailable_interval
+                ) in atomic_students_unavailable_intervals[student]:
+                    model.AddNoOverlap([interval, atomic_student_unavailable_interval])
+            # all_intervals = intervals + weekly_unavailable_intervals
+            # model.AddNoOverlap(all_intervals)
 
-    for (
-        atomic_students_unavailable_subintervals
-    ) in atomic_students_unavailable_intervals:
-        for student, intervals in students_intervals.items():
-            if (len(intervals) > 1) and (
-                student in atomic_students_unavailable_subintervals.keys()
-            ):
-                all_intervals = (
-                    intervals + atomic_students_unavailable_subintervals[student]
-                )
-                model.AddNoOverlap(all_intervals)
+    # for (
+    #     atomic_students_unavailable_subintervals
+    # ) in atomic_students_unavailable_intervals:
+    #     for student, intervals in students_intervals.items():
+    #         if (len(intervals) > 1) and (
+    #             student in atomic_students_unavailable_subintervals.keys()
+    #         ):
+    #             for interval in intervals:
+    #                 for atomic_students_unavailable_subinterval in atomic_students_unavailable_subintervals[student]:
+    #                     model.AddNoOverlap([atomic_students_unavailable_subinterval, interval])
 
-    for student, intervals in students_intervals.items():
-        if len(intervals) > 1:
-            all_intervals = intervals + students_lunch_intervals[student]
-            model.AddNoOverlap(all_intervals)
+    # all_intervals = (
+    #     intervals + atomic_students_unavailable_subintervals[student]
+    # )
+    # model.AddNoOverlap(all_intervals)
+
+    # for student, intervals in students_intervals.items():
+    #     if len(intervals) > 1:
+    #         all_intervals = intervals + students_lunch_intervals[student]
+    #         model.AddNoOverlap(all_intervals)
 
     for room, intervals in room_intervals.items():
         if len(intervals) > 1:
@@ -989,15 +1020,25 @@ def load_setup(path):
     """
     with open(path) as f:
         data = yaml.safe_load(f)
+    origin_datetime = DateTime.from_str(data["ORIGIN_DATETIME"])
+    horizon_datetime = DateTime.from_str(data["HORIZON_DATETIME"])
+    origin_monday = DateTime.fromisocalendar(
+        origin_datetime.isocalendar().year, origin_datetime.isocalendar().week, 1
+    )
+    horizon_monday = DateTime.fromisocalendar(
+        horizon_datetime.isocalendar().year, horizon_datetime.isocalendar().week, 1
+    )
     out = {}
     out["WEEK_STRUCTURE"] = WEEK_STRUCTURE = read_week_structure(data["WEEK_STRUCTURE"])
     ONE_WEEK = TimeDelta.from_str("1w")
     ONE_DAY = TimeDelta.from_str("1d")
     out["WEEK_STRUCTURE"] = read_week_structure(data["WEEK_STRUCTURE"])
     out["DAYS_PER_WEEK"], out["TIME_SLOTS_PER_DAY"] = out["WEEK_STRUCTURE"].shape
-    out["ORIGIN_DATETIME"] = DateTime.from_str(data["ORIGIN_DATETIME"])
-    out["HORIZON_DATETIME"] = DateTime.from_str(data["HORIZON_DATETIME"])
-    out["MAX_WEEKS"] = (out["HORIZON_DATETIME"] - out["ORIGIN_DATETIME"]) // ONE_WEEK
+    out["ORIGIN_DATETIME"] = origin_datetime
+    out["HORIZON_DATETIME"] = horizon_datetime
+    out["HORIZON_MONDAY"] = horizon_monday
+    out["ORIGIN_MONDAY"] = origin_monday
+    out["MAX_WEEKS"] = (horizon_monday - origin_monday) // ONE_WEEK + 1
     out["TIME_SLOT_DURATION"] = ONE_DAY / out["TIME_SLOTS_PER_DAY"]
     out["TIME_SLOTS_PER_WEEK"] = out["DAYS_PER_WEEK"] * out["TIME_SLOTS_PER_DAY"]
     out["HORIZON"] = out["MAX_WEEKS"] * out["TIME_SLOTS_PER_WEEK"]

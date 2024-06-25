@@ -54,6 +54,8 @@ TIME_SLOTS_PER_WEEK = setup["TIME_SLOTS_PER_WEEK"]
 activities_kinds = setup["ACTIVITIES_KINDS"]
 DAYS_PER_WEEK = setup["DAYS_PER_WEEK"]
 TIME_SLOTS_PER_DAY = setup["TIME_SLOTS_PER_DAY"]
+ORIGIN_MONDAY = setup["ORIGIN_MONDAY"]
+HORIZON_MONDAY = setup["HORIZON_MONDAY"]
 
 # ACTIVITY GENERATION
 
@@ -73,8 +75,10 @@ if True:
     extracted_constraints = read_from_yaml(
         f"{extracted_data_dir}extracted_constraints.yaml"
     )
+    print("Found extracted constraints: " + Messages.SUCCESS)
 else:
     extracted_constraints = None
+    print("No extracted constraints found: " + Messages.WARNING)
 
 # STUDENTS GROUPS
 students_data = yaml.load(open("student_data.yaml"), Loader=yaml.SafeLoader)
@@ -158,10 +162,6 @@ if extracted_constraints != None:
         else:
             print(f"Teacher {teacher} has no existing constraints.")
 
-    # for room, acts in ressource_existing_intervals["rooms"].items():
-    #     if room not in room_data.keys():
-    #         room_data[room] = {"unavailable": []}
-    #     room_data[room]["unavailable"] += acts
     room_data["constraints"] = {
         k: {"unavailable": []} for k in tracked_ressources["rooms"]
     }
@@ -174,13 +174,24 @@ if extracted_constraints != None:
         else:
             print(f"Room {room} has no existing constraints.")
 
-    if False:
-        # new_d = {}
-        # for k, v in extracted_constraints["students"].items():
-        #     new_d[k] = {"unavailable": []}
-        #     for act in v["unavailable"]:
-        #         new_d[k]["unavailable"].append(act)
-        students_existing_intervals = [calendar_data, calendar_data]
+    if True:
+        students_existing_intervals = calendar_data
+        for group, existing_constraints in extracted_constraints["students"].items():
+            if group not in students_existing_intervals.keys():
+                students_existing_intervals[group] = {"unavailable": []}
+            if not "unavailable" in students_existing_intervals[group].keys():
+                students_existing_intervals[group]["unavailable"] = []
+            students_existing_intervals[group]["unavailable"] += existing_constraints[
+                "unavailable"
+            ]
+            print(f"Added extracted constraints for group {group}")
+            # else:
+            #     print(f"Group {group} has no existing constraints.")
+            # new_d[k] = {"unavailable": []}
+            # for act in v["unavailable"]:
+            #     new_d[k]["unavailable"].append(act)
+        # calendar_data += new_d
+        students_existing_intervals = calendar_data
     else:
         students_existing_intervals = [calendar_data, calendar_data]  # THIS IS DIRTY
 
@@ -222,15 +233,12 @@ weekly_unavailable_intervals = create_weekly_unavailable_intervals(
 
 # STUDENT UNAVAILABILITY
 # students_data = students_data[:1] # ATTENTION TEST A RETIRER
-students_unavailable_intervals = [
-    create_unavailable_constraints(
-        model,
-        data=students_existing_intervals[i],
-        start_day=ORIGIN_DATETIME,
-        horizon=HORIZON,
-    )
-    for i in range(len(students_data))
-]
+students_unavailable_intervals = create_unavailable_constraints(
+    model,
+    data=students_existing_intervals,
+    start_day=ORIGIN_DATETIME,
+    horizon=HORIZON,
+)
 
 
 # CHECK UNAVAILABILITY
@@ -240,61 +248,71 @@ students_atomic_groups = np.unique(
 
 
 def write_student_unavailability_matrices():
-    matrices = {
-        k: np.zeros(TIME_SLOTS_PER_WEEK * MAX_WEEKS).astype(np.int32)
-        for k in students_atomic_groups
-    }
-    for i in range(len(students_data)):
-        for group, intervals in students_existing_intervals[i].items():
-            for interval in intervals["unavailable"]:
-                if interval["kind"] == "isocalendar":
-                    from_week = interval["from_week"]
-                    to_week = interval["to_week"]
-                    from_weekday = interval["from_weekday"]
-                    to_weekday = interval["to_weekday"]
-                    start = (
-                        TIME_SLOTS_PER_WEEK * (from_week - 1)
-                        + TIME_SLOTS_PER_DAY * (from_weekday - 1)
-                        + interval["from_dayslot"]
+    origin_monday = ORIGIN_MONDAY
+    week_structure = (WEEK_STRUCTURE == 0) * 1
+    matrix0 = np.concatenate([week_structure for _ in range(MAX_WEEKS)]).flatten()
+
+    matrices = {k: matrix0.copy() for k in students_atomic_groups}
+    # for i in range(len(students_data)):
+    for group, intervals in students_existing_intervals.items():
+        for interval in intervals["unavailable"]:
+            if interval["kind"] == "isocalendar":
+                from_week = interval["from_week"]
+                to_week = interval["to_week"]
+                from_weekday = interval["from_weekday"]
+                to_weekday = interval["to_weekday"]
+                start = (
+                    TIME_SLOTS_PER_WEEK * (from_week - 1)
+                    + TIME_SLOTS_PER_DAY * (from_weekday - 1)
+                    + interval["from_dayslot"]
+                )
+                end = (
+                    TIME_SLOTS_PER_WEEK * (to_week - 1)
+                    + TIME_SLOTS_PER_DAY * (to_weekday - 1)
+                    + interval["to_dayslot"]
+                )
+            elif interval["kind"] == "datetime":
+                start_datetime = DateTime.from_str(interval["start"])
+                end_datetime = DateTime.from_str(interval["end"])
+                start = math.floor(
+                    (start_datetime - origin_monday).to_slots(
+                        slot_duration=TIME_SLOT_DURATION
                     )
-                    end = (
-                        TIME_SLOTS_PER_WEEK * (to_week - 1)
-                        + TIME_SLOTS_PER_DAY * (to_weekday - 1)
-                        + interval["to_dayslot"]
+                )
+                end = math.ceil(
+                    (end_datetime - origin_monday).to_slots(
+                        slot_duration=TIME_SLOT_DURATION
                     )
-                elif interval["kind"] == "datetime":
-                    start_datetime = DateTime.from_str(interval["start"])
-                    end_datetime = DateTime.from_str(interval["end"])
-                    start = math.floor(
-                        (start_datetime - ORIGIN_DATETIME).to_slots(
-                            slot_duration=TIME_SLOT_DURATION
-                        )
-                    )
-                    end = math.ceil(
-                        (end_datetime - ORIGIN_DATETIME).to_slots(
-                            slot_duration=TIME_SLOT_DURATION
-                        )
-                    )
-                for student in students_groups[group]:
-                    matrices[student][start:end] += 1
+                )
+            for student in students_groups[group]:
+                matrices[student][start:end] += 1
 
     for agroup, matrix in matrices.items():
         d = 1
-        w = ORIGIN_DATETIME.isocalendar().week
+        w = origin_monday.isocalendar().week
+        y = origin_monday.isocalendar().year
+        datetime = DateTime.fromisocalendar(y, w, 1)
         with open(
             f"{output_dir}/students_unavailability_matrix_{agroup}.txt",
             "w",
             encoding="utf-8",
         ) as f:
             for r in matrix.reshape(-1, TIME_SLOTS_PER_DAY):
-                f.write(f"w{w}-d{d} " + "".join([str(rr) for rr in r]) + "\n")
+                f.write(
+                    f"{y}-W{str(w).zfill(2)}-d{d} "
+                    + "".join([str(rr) for rr in r])
+                    + "\n"
+                )
                 d += 1
                 if d == DAYS_PER_WEEK + 1:
-                    w += 1
+                    datetime += TimeDelta.from_str("1w")
+                    w = datetime.isocalendar().week
+                    y = datetime.isocalendar().year
                     d = 1
+    return matrices
 
 
-write_student_unavailability_matrices()
+students_matrices = write_student_unavailability_matrices()
 # ACTIVITIES
 
 (

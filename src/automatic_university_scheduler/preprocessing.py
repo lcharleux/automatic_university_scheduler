@@ -287,3 +287,24 @@ def get_unique_ressources_in_activities(data, kind="teachers"):
                 unique_ressources += ress[1]
 
     return np.unique(unique_ressources)
+
+
+def get_unique_students_in_activities(data):
+    """
+    Extracts and returns the unique students from the provided activity data.
+
+    Parameters:
+    data (dict): The activity data. This should be a dictionary where each key is a module name and
+                 the corresponding value is a dictionary containing module data. The module data dictionary
+                 should have an "activities" key whose value is another dictionary. This dictionary should
+                 have keys that are activity names and values that are dictionaries containing activity data.
+
+    Returns:
+    np.array: A numpy array containing the unique students found in the activity data.
+    """
+    unique_students = []
+    for module, mdata in data.items():
+        for act_key, act in mdata["activities"].items():
+            unique_students.append(act["students"])
+
+    return np.unique(unique_students)

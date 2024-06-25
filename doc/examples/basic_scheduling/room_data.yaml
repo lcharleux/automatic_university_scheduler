@@ -32,11 +32,11 @@ default_rooms:
   - A-POLY-B120
   MM-3:
   - A-POLY-B120
-  MM-3-A-TD:
+  MECA-FISE-3-A-TD:
   - A-POLY-C110
-  MM-3-B-TD:
+  MECA-FISE-3-B-TD:
   - A-POLY-C110
-  MM-3-C-TD:
+  MECA-FISE-3-C-TD:
   - A-POLY-A204
   SNI-3-D-TD:
   - A-POLY-A022

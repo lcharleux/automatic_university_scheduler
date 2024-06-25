@@ -4,7 +4,12 @@ from automatic_university_scheduler.datetime import DateTime
 
 
 def extract_constraints_from_table(
-    raw_data, setup, student_data, tracked_ressources, format="USMB"
+    raw_data,
+    setup,
+    student_data,
+    tracked_ressources,
+    format="USMB",
+    school="POLYTECH Annecy",
 ):
     """
     Extracts constraints from a given table of raw data based on the setup, student data, and tracked resources.
@@ -51,7 +56,7 @@ def extract_constraints_from_table(
             if type(s) == float:
                 return ""
             else:
-                return s
+                return s.strip()
 
         col_map = {
             "year": lambda df: df["Année"].values.astype(np.int32),
@@ -64,7 +69,7 @@ def extract_constraints_from_table(
             "rooms": lambda df: df["Liste des salles"].map(
                 lambda s: s.replace("Indéterminé", "")
             ),
-            "students": lambda df: df["Nom des groupes étudiants"].map(
+            "students": lambda df: (df["Nom des groupes étudiants"]).map(
                 process_students_and_teachers
             ),
             "teachers": lambda df: df["_Bloc Liste Enseignants (étape 4)"].map(
@@ -72,6 +77,9 @@ def extract_constraints_from_table(
             ),
             "school": lambda df: df["Composantes groupes étudiants"].map(
                 lambda s: s.replace("Indéterminé", "")
+            ),
+            "description": lambda df: df["Libellé Activité"].map(
+                process_students_and_teachers
             ),
         }
 
@@ -109,10 +117,23 @@ def extract_constraints_from_table(
                 "kind": "datetime",
                 "start": start_datetime.to_str(),
                 "end": end_datetime.to_str(),
+                "description": row["description"],
             }
             for kind in ["teachers", "students", "rooms"]:
-                if row[kind] != "":
-                    ressources = [r.strip() for r in row[kind].split(",")]
+                if kind == "students":
+                    if row[kind] != "":
+                        schools_names = row["school"]
+                        if school in schools_names:
+                            row_data = row[kind]
+                        else:
+                            row_data = ""
+                    else:
+                        row_data = ""
+                else:
+                    row_data = row[kind]
+
+                if row_data != "":
+                    ressources = [r.strip() for r in row_data.split(",")]
                     for ressource in ressources:
                         if ressource in constraints[kind].keys():
                             constraints[kind][ressource]["unavailable"].append(

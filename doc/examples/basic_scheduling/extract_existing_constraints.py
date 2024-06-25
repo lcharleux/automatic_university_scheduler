@@ -18,17 +18,19 @@ from automatic_university_scheduler.utils import (
 
 from automatic_university_scheduler.extraction import extract_constraints_from_table
 
-# path = "ade-export-polytech-2024-06-19-07-00-57.xlsx"
-path = "ade-export-polytech-2024-06-19-07-00-57.csv"
-extracted_data_dir = "../planification/outputs/extracted_data/"
-setup_path = "../setup.yaml"
-tracked_ressources_path = "../planification/preprocessing/tracked_ressources.yaml"
-student_data_path = "../student_data.yaml"
+path = "ade-export-polytech-2024-06-19-07-00-57.xlsx"
+path = "ade-export-polytech-2024-06-25-07-01-01.xlsx"
+# path = "filtered_data.csv"
+existing_activities_dir = "existing_activities/extractions/"
+extracted_data_dir = "planification/outputs/extracted_data/"
+setup_path = "setup.yaml"
+tracked_ressources_path = "planification/preprocessing/tracked_ressources.yaml"
+student_data_path = "student_data.yaml"
 
 if path.endswith(".xlsx"):
-    raw_data = pd.read_excel(f"extractions/{path}", header=0)
+    raw_data = pd.read_excel(f"{existing_activities_dir}{path}", header=0)
 elif path.endswith(".csv"):
-    raw_data = pd.read_csv(f"extractions/{path}", header=0)
+    raw_data = pd.read_csv(f"{existing_activities_dir}{path}", header=0)
 else:
     raise ValueError("Invalid file format")
 create_directory(extracted_data_dir)

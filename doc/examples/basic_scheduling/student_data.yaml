@@ -8,35 +8,63 @@ constraints:
           "start": "2024-W01-1 00:00",
           "end": "2024-W36-1 12:00",
         }
+      - {
+          # TOUSSAINTS HOLLIDAYS
+          "kind": "datetime",
+          "start": "2024-W44-1 00:00",
+          "end": "2024-W44-7 23:00",
+        }
+      - {
+          # CHRISTMAS HOLLIDAYS
+          "kind": "datetime",
+          "start": "2024-W52-1 00:00",
+          "end": "2025-W01-7 23:00",
+        }
+      - {
+          # CHRISTMAS HOLLIDAYS 2: THIS IS A TEST
+          "kind": "datetime",
+          "start": "2024-W52-1 00:00",
+          "end": "2025-W01-7 23:00",
+        }
 groups:
   null: []
   EPU-3-S6:
-    - MM-3-A1
-    - MM-3-A2
-    - MM-3-B1
-    - MM-3-B2
-    - MM-3-C1
-    - MM-3-C2
+    - MECA-FISE-3-A1
+    - MECA-FISE-3-A2
+    - MECA-FISE-3-B1
+    - MECA-FISE-3-B2
+    - MECA-FISE-3-C1
+    - MECA-FISE-3-C2
+    - SNI-3-D1
+    - IDU-3-G1
+    - IDU-3-G2
+  EPU-3-S5:
+    - MECA-FISE-3-A1
+    - MECA-FISE-3-A2
+    - MECA-FISE-3-B1
+    - MECA-FISE-3-B2
+    - MECA-FISE-3-C1
+    - MECA-FISE-3-C2
     - SNI-3-D1
     - IDU-3-G1
     - IDU-3-G2
   SNI-3, MM-3, IDU-3:
-    - MM-3-A1
-    - MM-3-A2
-    - MM-3-B1
-    - MM-3-B2
-    - MM-3-C1
-    - MM-3-C2
+    - MECA-FISE-3-A1
+    - MECA-FISE-3-A2
+    - MECA-FISE-3-B1
+    - MECA-FISE-3-B2
+    - MECA-FISE-3-C1
+    - MECA-FISE-3-C2
     - SNI-3-D1
     - IDU-3-G1
     - IDU-3-G2
   MM-3:
-    - MM-3-A1
-    - MM-3-A2
-    - MM-3-B1
-    - MM-3-B2
-    - MM-3-C1
-    - MM-3-C2
+    - MECA-FISE-3-A1
+    - MECA-FISE-3-A2
+    - MECA-FISE-3-B1
+    - MECA-FISE-3-B2
+    - MECA-FISE-3-C1
+    - MECA-FISE-3-C2
   SNI-3:
     - SNI-3-D1
   IDU-3:
@@ -50,44 +78,44 @@ groups:
     - IDU-3-G1
     - IDU-3-G2
     - SNI-3-D1
-  MM-3-A-TD:
-    - MM-3-A1
-    - MM-3-A2
-  MM-3-B-TD:
-    - MM-3-B1
-    - MM-3-B2
-  MM-3-C-TD:
-    - MM-3-C1
-    - MM-3-C2
+  MECA-FISE-3-A-TD:
+    - MECA-FISE-3-A1
+    - MECA-FISE-3-A2
+  MECA-FISE-3-B-TD:
+    - MECA-FISE-3-B1
+    - MECA-FISE-3-B2
+  MECA-FISE-3-C-TD:
+    - MECA-FISE-3-C1
+    - MECA-FISE-3-C2
   SNI-3-D-TD:
     - SNI-3-D1
   IDU-3-G-TD:
     - IDU-3-G1
     - IDU-3-G2
-  MM-3-A1:
-    - MM-3-A1
-  MM-3-A1-TP:
-    - MM-3-A1
-  MM-3-A2:
-    - MM-3-A2
-  MM-3-A2-TP:
-    - MM-3-A2
-  MM-3-B1:
-    - MM-3-B1
-  MM-3-B1-TP:
-    - MM-3-B1
-  MM-3-B2:
-    - MM-3-B2
-  MM-3-B2-TP:
-    - MM-3-B2
-  MM-3-C1:
-    - MM-3-C1
-  MM-3-C1-TP:
-    - MM-3-C1
-  MM-3-C2:
-    - MM-3-C2
-  MM-3-C2-TP:
-    - MM-3-C2
+  MECA-FISE-3-A1:
+    - MECA-FISE-3-A1
+  MECA-FISE-3-A1-TP:
+    - MECA-FISE-3-A1
+  MECA-FISE-3-A2:
+    - MECA-FISE-3-A2
+  MECA-FISE-3-A2-TP:
+    - MECA-FISE-3-A2
+  MECA-FISE-3-B1:
+    - MECA-FISE-3-B1
+  MECA-FISE-3-B1-TP:
+    - MECA-FISE-3-B1
+  MECA-FISE-3-B2:
+    - MECA-FISE-3-B2
+  MECA-FISE-3-B2-TP:
+    - MECA-FISE-3-B2
+  MECA-FISE-3-C1:
+    - MECA-FISE-3-C1
+  MECA-FISE-3-C1-TP:
+    - MECA-FISE-3-C1
+  MECA-FISE-3-C2:
+    - MECA-FISE-3-C2
+  MECA-FISE-3-C2-TP:
+    - MECA-FISE-3-C2
   SNI-3-D1:
     - SNI-3-D1
   SNI-3-D1-TP:
