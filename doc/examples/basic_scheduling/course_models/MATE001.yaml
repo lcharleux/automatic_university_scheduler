@@ -12,8 +12,8 @@ MATE001:
         pool: ["amphi"]
         value: 1
       students: "MM-3"
-      # earliest_datetime: "2024-W38-4 08:00"
-      # latest_datetime: "2024-W40-7 18:00"
+      earliest_datetime: "2024-W38-4 08:00"
+      latest_datetime: "2024-W44-7 18:00"
 
     # TD
     TD1-A:

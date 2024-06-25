@@ -14,6 +14,7 @@ from automatic_university_scheduler.datetime import (
     datetime_to_slot,
 )
 import yaml
+import math
 
 DAYS_NAMES = [
     "Monday",
@@ -739,19 +740,6 @@ def create_activities(
                 for fb in forbidden_days:
                     model.Add(weekday != fb - 1)
 
-    # THIS MUST BE WRONG
-    # for teacher_unavailable_subintervals in teacher_unavailable_intervals:
-    #     for teacher, intervals in teacher_intervals.items():
-    #         if len(intervals) > 1:
-    #             print(teacher_unavailable_subintervals)
-    #             if teacher in teacher_unavailable_subintervals.keys():
-    #                 all_intervals = (
-    #                     intervals + teacher_unavailable_subintervals[teacher]
-    #                 )
-    #             else:
-    #                 all_intervals = intervals
-    #             model.AddNoOverlap(all_intervals)
-
     for teacher, intervals in teacher_intervals.items():
         if len(intervals) > 0:
             model.AddNoOverlap(intervals)
@@ -774,29 +762,6 @@ def create_activities(
                     atomic_student_unavailable_interval
                 ) in atomic_students_unavailable_intervals[student]:
                     model.AddNoOverlap([interval, atomic_student_unavailable_interval])
-            # all_intervals = intervals + weekly_unavailable_intervals
-            # model.AddNoOverlap(all_intervals)
-
-    # for (
-    #     atomic_students_unavailable_subintervals
-    # ) in atomic_students_unavailable_intervals:
-    #     for student, intervals in students_intervals.items():
-    #         if (len(intervals) > 1) and (
-    #             student in atomic_students_unavailable_subintervals.keys()
-    #         ):
-    #             for interval in intervals:
-    #                 for atomic_students_unavailable_subinterval in atomic_students_unavailable_subintervals[student]:
-    #                     model.AddNoOverlap([atomic_students_unavailable_subinterval, interval])
-
-    # all_intervals = (
-    #     intervals + atomic_students_unavailable_subintervals[student]
-    # )
-    # model.AddNoOverlap(all_intervals)
-
-    # for student, intervals in students_intervals.items():
-    #     if len(intervals) > 1:
-    #         all_intervals = intervals + students_lunch_intervals[student]
-    #         model.AddNoOverlap(all_intervals)
 
     for room, intervals in room_intervals.items():
         if len(intervals) > 1:
@@ -817,6 +782,8 @@ def create_activities(
 def export_student_schedule_to_xlsx(
     xlsx_path, solution, students_groups, week_structure, column_width=40, row_height=80
 ):
+    """ """
+
     days_per_week, time_slots_per_day = week_structure.shape
     atomic_students_groups = get_atomic_students_groups(students_groups)
     writer = pd.ExcelWriter(xlsx_path, engine="xlsxwriter")
@@ -1064,3 +1031,182 @@ def read_week_structure(data):
     """
     WEEK_STRUCTURE = np.array([list(day.replace(" ", "")) for day in data]).astype(int)
     return WEEK_STRUCTURE
+
+
+def write_student_unavailability_matrices(
+    students_existing_intervals,
+    students_atomic_groups,
+    students_groups,
+    max_weeks,
+    origin_monday,
+    week_structure,
+    time_slot_duration,
+    output_dir=None,
+):
+    """
+    Writes the unavailability matrices for each student group.
+    """
+    week_structure = (week_structure == 0) * 1
+    time_slots_per_week = week_structure.size
+    days_per_week, time_slots_per_day = week_structure.shape
+    matrix0 = np.concatenate([week_structure for _ in range(max_weeks)]).flatten()
+    matrices = {k: matrix0.copy() for k in students_atomic_groups}
+    for group, intervals in students_existing_intervals.items():
+        for interval in intervals["unavailable"]:
+            if interval["kind"] == "isocalendar":
+                from_week = interval["from_week"]
+                to_week = interval["to_week"]
+                from_weekday = interval["from_weekday"]
+                to_weekday = interval["to_weekday"]
+                start = (
+                    time_slots_per_week * (from_week - 1)
+                    + times_slots_per_day * (from_weekday - 1)
+                    + interval["from_dayslot"]
+                )
+                end = (
+                    time_slots_per_week * (to_week - 1)
+                    + times_slots_per_day * (to_weekday - 1)
+                    + interval["to_dayslot"]
+                )
+            elif interval["kind"] == "datetime":
+                start_datetime = DateTime.from_str(interval["start"])
+                end_datetime = DateTime.from_str(interval["end"])
+                start = math.floor(
+                    (start_datetime - origin_monday).to_slots(
+                        slot_duration=time_slot_duration
+                    )
+                )
+                end = math.ceil(
+                    (end_datetime - origin_monday).to_slots(
+                        slot_duration=time_slot_duration
+                    )
+                )
+            for student in students_groups[group]:
+                matrices[student][start:end] += 1
+    if output_dir != None:
+        for agroup, matrix in matrices.items():
+            d = 1
+            w = origin_monday.isocalendar().week
+            y = origin_monday.isocalendar().year
+            datetime = DateTime.fromisocalendar(y, w, 1)
+            out = ""
+
+            for r in matrix.reshape(-1, time_slots_per_day):
+                out += (
+                    f"{y}-W{str(w).zfill(2)}-d{d} "
+                    + "".join([str(rr) for rr in r])
+                    + "\n"
+                )
+                d += 1
+                if d == days_per_week + 1:
+                    datetime += TimeDelta.from_str("1w")
+                    w = datetime.isocalendar().week
+                    y = datetime.isocalendar().year
+                    d = 1
+
+            open(
+                f"{output_dir}/students_unavailability_matrix_{agroup}.txt", "w"
+            ).write(out)
+    return matrices
+
+
+def export_modules(
+    solution, output_dir="./", filename="modules_activities.xlsx", sort_by=None
+):
+    writer = pd.ExcelWriter(f"{output_dir}/{filename}", engine="xlsxwriter")
+    unique_modules = solution.module.unique()
+    unique_modules.sort()
+    for module in unique_modules:
+        if sort_by != None:
+            module_solution = solution[solution.module == module].sort_values(sort_by)
+        module_solution = solution[solution.module == module].sort_values(["start"])
+        module_solution = module_solution[
+            [
+                "label",
+                "week",
+                "weekday",
+                "weekdayname",
+                "starttime",
+                "endtime",
+                "kind",
+                "students",
+                "teachers",
+                "rooms",
+                "year",
+                "month",
+                "day",
+                "daystart",
+                "dayend",
+            ]
+        ]
+        sheet_name = f"{module}"
+        module_solution.to_excel(writer, sheet_name=sheet_name, index=False, startrow=1)
+        worksheet = writer.sheets[sheet_name]
+        workbook = writer.book
+        my_format = workbook.add_format(
+            {"align": "center", "valign": "vcenter", "border": 0, "font_size": 11}
+        )
+        worksheet.set_column("A:A", 50, my_format)
+        worksheet.set_column("B:G", 12, my_format)
+        worksheet.set_column("H:H", 20, my_format)
+        worksheet.set_column("I:J", 70, my_format)
+        worksheet.set_column("K:N", 12, my_format)
+        nrows = module_solution.shape[0] + 2
+        tag = f"A2:N{nrows}"
+        worksheet.autofilter(tag)
+
+    writer.close()
+
+
+def export_ressources(solution, output_dir="./", filesuffix="_activities.xlsx"):
+    """ """
+    for ressources in ["teachers", "rooms"]:
+        writer = pd.ExcelWriter(
+            f"{output_dir}/{ressources}{filesuffix}", engine="xlsxwriter"
+        )
+        unique_ressources = np.unique(np.concatenate(solution[ressources].values))
+        unique_ressources.sort()
+
+        for ressource in unique_ressources:
+            loc = solution[ressources].apply(lambda a: np.isin(ressource, a))
+            ressource_solution = solution[loc].sort_values(["start"])
+            ressource_solution = ressource_solution[
+                [
+                    "module",
+                    "label",
+                    "week",
+                    "weekday",
+                    "weekdayname",
+                    "starttime",
+                    "endtime",
+                    "kind",
+                    "students",
+                    "teachers",
+                    "rooms",
+                    "year",
+                    "month",
+                    "day",
+                    "daystart",
+                    "dayend",
+                ]
+            ]
+            sheet_name = f"{ressource}"
+            ressource_solution.to_excel(
+                writer, sheet_name=sheet_name, index=False, startrow=1
+            )
+            worksheet = writer.sheets[sheet_name]
+            workbook = writer.book
+            my_format = workbook.add_format(
+                {"align": "center", "valign": "vcenter", "border": 0, "font_size": 11}
+            )
+            worksheet.set_column("A:A", 20, my_format)
+            worksheet.set_column("B:B", 50, my_format)
+            worksheet.set_column("C:H", 12, my_format)
+            worksheet.set_column("I:I", 20, my_format)
+            worksheet.set_column("J:K", 70, my_format)
+            worksheet.set_column("L:N", 12, my_format)
+            nrows = ressource_solution.shape[0] + 2
+            tag = f"A2:P{nrows}"
+            worksheet.autofilter(tag)
+
+        writer.close()
