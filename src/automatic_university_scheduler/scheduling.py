@@ -422,6 +422,25 @@ def create_weekly_unavailable_intervals(model, week_structure, max_weeks):
             unavailable_intervals.append(interval)
     return unavailable_intervals
 
+def save_solution_as_pklz(activity_data, solver, path="outputs/solution.pklz"):
+    var_dict = {}
+    for mlabel, module in activity_data.items():
+        for alabel, activity in module["activities"].items():
+            activity_model = activity["model"]
+            for s in ["start", "end"]:
+                var_dict[activity_model[s]] = solver.Value(activity_model[s])
+            for alt_label, alt in activity_model["alts"].items():
+                for s in ["presence"]:
+                    var_dict[alt[s]] = solver.Value(alt[s])
+    try:
+        import cPickle as pickle
+    except ImportError:  # Python 3.x
+        import pickle
+
+    with open(path, 'wb') as fp:
+        pickle.dump(var_dict, fp, protocol=pickle.HIGHEST_PROTOCOL)
+    return var_dict
+
 
 def export_solution(
     activity_data, model, solver, students_groups, week_structure, start_day
