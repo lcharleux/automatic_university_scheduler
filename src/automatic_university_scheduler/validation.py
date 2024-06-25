@@ -27,10 +27,19 @@ def quarter_to_redeable(quarter):
     Converts quarter of hour to human readable format.
     output format is "x d: x h: x min".
     """
+    sgn = 1
+    if quarter < 0:
+        sgn = -1
+        quarter = -quarter
+
     days = quarter // 96
     hours = (quarter % 96) // 4
     minutes = (quarter % 96) % 4 * 15
-    res= ""
+    if sgn == -1:
+        res = "-"
+    else:
+        res= ""
+
     if days > 0:
         res += f"{days}d"
     if hours > 0:
@@ -55,7 +64,7 @@ def constraints_to_graph(constraints):
                     min_offset = quarter_to_redeable(min_offset)
                     offset += f"{min_offset} <= t"
                 if min_offset == None:
-                    min_offset = "0"
+                    min_offset = "*"
                     offset += f"{min_offset} <= t"
             if "max_offset" in constraint.keys():
                 max_offset = constraint["max_offset"]
@@ -65,7 +74,7 @@ def constraints_to_graph(constraints):
                     max_offset = quarter_to_redeable(max_offset)
                     offset += f" <= {max_offset}"
                 if max_offset == None:
-                    max_offset = "inf"
+                    max_offset = "*"
                     offset += f" <= {max_offset}"
 
             for start in constraint["start_after"]:
@@ -75,6 +84,7 @@ def constraints_to_graph(constraints):
                     start += ":::TDclass"
                 if "TP" in start:
                     start += ":::TPclass"
+                    
                 for end in constraint["activities"]:
                     text_constraints += f"        {start} -->|{offset}| {end}\n"
 
