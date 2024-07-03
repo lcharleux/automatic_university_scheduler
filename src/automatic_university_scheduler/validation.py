@@ -1,26 +1,29 @@
 import pandas as pd
 from string import Template
+import networkx as nx
+from automatic_university_scheduler.utils import Messages, Colors
 
-template = r"""
-<html lang="fr">		
-<head>		
-    <meta charset="utf-8" />		
-</head>		
+_mermaid_flow_template = r"""
+<html lang="fr">
+<head>
+    <meta charset="utf-8" />
+</head>
 <body>
 <h1>
 $TITLE
-</h1>		
-    <pre class="mermaid">		
-    flowchart TB	
+</h1>
+    <pre class="mermaid">
+    flowchart TB
     $GRAPH
-    </pre>		
-    <script type="module">		
-    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@9/dist/mermaid.esm.min.mjs';		
-    mermaid.initialize({ startOnLoad: true });		
-    </script>		
-</body>		
-</html>	
+    </pre>
+    <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@9/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true });
+    </script>
+</body>
+</html>
 """
+
 
 def quarter_to_redeable(quarter):
     """
@@ -38,7 +41,7 @@ def quarter_to_redeable(quarter):
     if sgn == -1:
         res = "-"
     else:
-        res= ""
+        res = ""
 
     if days > 0:
         res += f"{days}d"
@@ -49,11 +52,11 @@ def quarter_to_redeable(quarter):
     return res
 
 
-def constraints_to_graph(constraints):
+def constraints_to_mermaid_graph(constraints: list) -> str:
+
     """
     Converts YAML constraint model to Mermaid graph.
     """
-    #text_constraints = "::: mermaid\n    graph TB\n"
     text_constraints = ""
     for constraint in constraints:
         if constraint["kind"] == "succession":
@@ -84,20 +87,18 @@ def constraints_to_graph(constraints):
                     start += ":::TDclass"
                 if "TP" in start:
                     start += ":::TPclass"
-                    
+
                 for end in constraint["activities"]:
                     text_constraints += f"        {start} -->|{offset}| {end}\n"
 
-    text_constraints += "     classDef CMclass fill:#f77\n"
-    text_constraints += "     classDef TDclass fill:#7f7\n"
-    text_constraints += "     classDef TPclass fill:#77f\n"
-
-    text_constraints = Template(template).substitute(GRAPH = text_constraints, TITLE = "Constrainte")
+    text_constraints = Template(_mermaid_flow_template).substitute(
+        GRAPH=text_constraints, TITLE="Constraints Graph"
+    )
 
     return text_constraints
 
 
-def activities_to_dataframe(activities):
+def activities_to_dataframe(activities: dict) -> pd.DataFrame:
     """
     Summarizes YAML activities as a Pandas DataFrame.
     """
@@ -123,3 +124,77 @@ def activities_to_dataframe(activities):
     out = pd.DataFrame(out, index=index)
     out.index.name = "label"
     return out
+
+
+def constraints_to_digraph(constraints: list) -> nx.DiGraph:
+    """
+    Converts YAML constraints to NetworkX DiGraph.
+    """
+    G = nx.DiGraph()
+    for constraint in constraints:
+        if constraint["kind"] == "succession":
+            for start in constraint["start_after"]:
+                for end in constraint["activities"]:
+                    G.add_edge(start, end)
+    return G
+
+
+def graph_degrees(G: nx.DiGraph) -> pd.DataFrame:
+    """
+    Computes in and out degrees of a NetworkX DiGraph.
+    """
+    graph = pd.concat(
+        [
+            pd.Series(dict(G.in_degree(G.nodes)), name="in_degree"),
+            pd.Series(dict(G.out_degree(G.nodes)), name="out_degree"),
+        ],
+        axis=1,
+    )
+    graph.index.name = "node"
+    return graph
+
+
+def cycles_in_graph(G: nx.DiGraph) -> list:
+    """
+    Detects cycles in a NetworkX DiGraph.
+    """
+    cycles = list(nx.simple_cycles(G))
+    return cycles
+
+
+def analyze_contraints_graph(constraints: list) -> pd.DataFrame:
+    """
+    Analyzes a YAML constraints graph.
+    """
+    G = constraints_to_digraph(constraints)
+
+    # CYCLES DETECTION
+    cycles = cycles_in_graph(G)
+    if len(cycles) > 0:
+        for cycle in cycles:
+            print(f"    CYCLES: cycle detected in graph: {cycle} => {Messages.ERROR}")
+            raise ValueError("Cycles detected in constraints graph")
+    else:
+        print(f"    CYCLES: success: no cycles detected in graph => {Messages.SUCCESS}")
+
+    # GRAPH ANALYSIS
+    graph_degrees_df = graph_degrees(G)
+    source_nodes = list(graph_degrees_df[graph_degrees_df.in_degree == 0].index)
+    sink_nodes = list(graph_degrees_df[graph_degrees_df.out_degree == 0].index)
+    if len(source_nodes) == 1:
+        print(
+            f"    SOURCE NODES: {source_nodes[0]} is the only source node => {Messages.SUCCESS}"
+        )
+    else:
+        print(
+            f"    SOURCE NODES: {len(source_nodes)} source nodes detected: {source_nodes} => {Messages.WARNING}"
+        )
+    if len(sink_nodes) == 1:
+        print(
+            f"    SINK NODES: {sink_nodes[0]} is the only sink node = {Messages.SUCCESS}"
+        )
+    else:
+        print(
+            f"    SINK NODES: {len(sink_nodes)} sink nodes detected: {sink_nodes} => {Messages.WARNING}"
+        )
+    return graph_degrees_df, cycles
