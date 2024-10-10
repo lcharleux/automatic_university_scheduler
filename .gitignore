@@ -4,3 +4,4 @@
 *.env
 **/*.egg-info/*
 /build/*
+sandbox/data.db
