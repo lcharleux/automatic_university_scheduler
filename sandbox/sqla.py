@@ -42,6 +42,8 @@ class Course(Base):
 
 class Activity(Base):
     __tablename__ = "activity"
+    _unique_columnns = ["course", "label"]
+
     id: Mapped[int] = mapped_column(primary_key=True)
     label: Mapped[str] = mapped_column(String(30))
     start: Mapped[int] = mapped_column(Integer, nullable=True)
@@ -52,11 +54,22 @@ class Activity(Base):
     kind_id: Mapped[int] = mapped_column(ForeignKey("activity_kind.id"))
     kind: Mapped["ActivityKind"] = relationship(back_populates="activitieszzz")
 
-    _table_args__ = (UniqueConstraint("course", "label", name="_unique_activity"),)
+    _table_args__ = (UniqueConstraint(*_unique_columnns, name="_unique_activity"),)
 
     def __repr__(self) -> str:
         name = self.__class__.__name__
         return f"<{name}: id={self.id}, name={self.label}, course={self.course.label}, start={self.start}, duration={self.duration},tunable:{self.tunable} >"
+
+    @classmethod
+    def get_or_create(cls, session: Session, **kwargs):
+        instance = session.query(cls).filter_by(**kwargs).first()
+        if instance:
+            return instance
+        else:
+            instance = cls(**kwargs)
+            session.add(instance)
+            session.commit()
+            return instance
 
 
 engine = create_engine("sqlite:///data.db", echo=False)
@@ -75,10 +88,13 @@ CM1 = Activity(label="CM1", start=None, duration=6, course=Course1, kind=CM)
 TD1 = Activity(label="TD1", start=33, duration=6, course=Course1, kind=TD)
 TP1 = Activity(label="TP1", start=33, duration=6, course=Course1, kind=TP)
 
+data = {"label": "CM1", "start": None, "duration": 6, "course": Course1, "kind": CM}
+
 
 new_items = [Course1, CM1, TD1, TP1]
 
-with Session(engine) as session:
+if True:  # with Session(engine) as session:
+    session = Session(engine)
     for item in new_items:
         # if True:
         try:
@@ -91,16 +107,16 @@ with Session(engine) as session:
         except Exception as e:
             raise e
 
-session = Session(engine)
+# session = Session(engine)
 
-courses = session.execute(select(Course)).scalars()
-print("Courses:")
-for course in courses:
-    print(course)
+# courses = session.execute(select(Course)).scalars()
+# print("Courses:")
+# for course in courses:
+#     print(course)
 
-activities = session.execute(
-    select(Activity).where(Activity.label.in_(["CM1", "TD1"]))
-).all()
-print("Activities:")
-for activity in activities:
-    print(activity)
+# activities = session.execute(
+#     select(Activity).where(Activity.label.in_(["CM1", "TD1"]))
+# ).all()
+# print("Activities:")
+# for activity in activities:
+#     print(activity)
