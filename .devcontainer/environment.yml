@@ -15,5 +15,8 @@ dependencies:
   - xlsxwriter
   - numpy
   - openpyxl
-  - ortools-python
   - scipy
+  - networkx
+  - matplotlib
+  - pip:
+    - ortools

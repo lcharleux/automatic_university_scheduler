@@ -1,0 +1,219 @@
+# MATE001: A MATERIAL SCIENCE COURSE
+MATE001:
+  activities:
+    # CM
+    CM1:
+      kind: CM
+      duration: 6
+      teachers:
+        pool: [AA]
+        value: 1
+      rooms:
+        pool: ["amphi"]
+        value: 1
+      students: "MM-3"
+      earliest_datetime: "2024-W38-4 08:00"
+      latest_datetime: "2024-W44-7 18:00"
+
+    # TD
+    TD1-A:
+      kind: TD
+      duration: 6
+      teachers:
+        pool: [AA]
+        value: 1
+      rooms:
+        pool: ["default"]
+        value: 1
+      students: "MECA-FISE-3-A-TD"
+    TD1-B:
+      kind: TD
+      duration: 6
+      teachers:
+        pool: [BB]
+        value: 1
+      rooms:
+        pool: ["default"]
+        value: 1
+      students: "MECA-FISE-3-B-TD"
+    TD1-C:
+      kind: TD
+      duration: 6
+      teachers:
+        pool: [AA]
+        value: 1
+      rooms:
+        pool: ["default"]
+        value: 1
+      students: "MECA-FISE-3-C-TD"
+
+  inner_activity_groups:
+    CM1_mater: [CM1]
+    # CM2_metal: [CM2]
+    # CM3_plast: [CM3]
+    # CM4_ceram: [CM4]
+    # CM5_compo: [CM5]
+    # CM6_plast: [CM6]
+    # CM7_ceram: [CM7]
+    # CM8_compo: [CM8]
+    # CM9_exame: [CM9]
+    TD1_metal: [TD1-A, TD1-B, TD1-C]
+    # TD2_metal: [TD2-A, TD2-B, TD2-C]
+    # TD3_mater: [TD3-A, TD3-B, TD3-C]
+    # TD4_metal: [TD4-A, TD4-B, TD4-C]
+    # TD5_mater: [TD5-A, TD5-B, TD5-C]
+    # TD6_metal: [TD6-A, TD6-B, TD6-C]
+    # TD7_mater: [TD7-A, TD7-B, TD7-C]
+    # TP1: [TP1-A1, TP1-A2, TP1-B1, TP1-B2, TP1-C1, TP1-C2]
+
+  foreign_activity_groups:
+    MECA653_CM1: [[MECA653, CM1]]
+
+  variables:
+    - &zero 0
+    - &oneday 96
+    - &halfday 48
+    - &twodays 192
+    - &threedays 288
+    - &fourdays 384
+    - &fivedays 480
+    - &oneweek 672
+    - &twoweeks 1344
+
+  constraints:
+    - {
+        kind: succession,
+        activities: [CM1_mater],
+        start_after: [TD1_metal],
+        min_offset: *oneday,
+        max_offset: null,
+      }
+    # - {
+    #     kind: succession,
+    #     activities: [CM2_metal],
+    #     start_after: [CM1_mater],
+    #     min_offset: *fivedays,
+    #     max_offset: null,
+    #   }
+    # - {
+    #     kind: succession,
+    #     activities: [CM3_plast],
+    #     start_after: [CM2_metal],
+    #     min_offset: *fivedays,
+    #     max_offset: null,
+    #   }
+    # - {
+    #     kind: succession,
+    #     activities: [CM4_ceram],
+    #     start_after: [CM3_plast],
+    #     min_offset: *fivedays,
+    #     max_offset: null,
+    #   }
+    # - {
+    #     kind: succession,
+    #     activities: [CM5_compo],
+    #     start_after: [CM4_ceram],
+    #     min_offset: *fivedays,
+    #     max_offset: null,
+    #   }
+    # - {
+    #     kind: succession,
+    #     activities: [CM6_plast],
+    #     start_after: [CM5_compo],
+    #     min_offset: *fivedays,
+    #     max_offset: null,
+    #   }
+    # - {
+    #     kind: succession,
+    #     activities: [CM7_ceram],
+    #     start_after: [CM6_plast],
+    #     min_offset: *fivedays,
+    #     max_offset: null,
+    #   }
+    # - {
+    #     kind: succession,
+    #     activities: [CM8_compo],
+    #     start_after: [CM7_ceram],
+    #     min_offset: *fivedays,
+    #     max_offset: null,
+    #   }
+    # - {
+    #     kind: succession,
+    #     activities: [CM9_exame],
+    #     start_after: [CM8_compo],
+    #     min_offset: *fivedays,
+    #     max_offset: null,
+    #   }
+
+    # - {
+    #     kind: succession,
+    #     activities: [TD2_metal],
+    #     start_after: [CM2_metal],
+    #     min_offset: *twoweeks,
+    #     max_offset: null,
+    #   }
+    # - {
+    #     kind: succession,
+    #     activities: [TD3_mater],
+    #     start_after: [CM3_plast],
+    #     min_offset: *twoweeks,
+    #     max_offset: null,
+    #   }
+    # - {
+    #     kind: succession,
+    #     activities: [TD3_mater],
+    #     start_after: [CM5_compo],
+    #     min_offset: *zero,
+    #     max_offset: *halfday,
+    #   }
+    # - {
+    #     kind: succession,
+    #     activities: [TD4_metal],
+    #     start_after: [TD2_metal],
+    #     min_offset: *fivedays,
+    #     max_offset: null,
+    #   }
+    # - {
+    #     kind: succession,
+    #     activities: [TD6_metal],
+    #     start_after: [TD4_metal],
+    #     min_offset: *fivedays,
+    #     max_offset: null,
+    #   }
+    # - {
+    #     kind: succession,
+    #     activities: [TD5_mater],
+    #     start_after: [CM6_plast],
+    #     min_offset: *zero,
+    #     max_offset: *halfday,
+    #   }
+    # - {
+    #     kind: succession,
+    #     activities: [TD7_mater],
+    #     start_after: [CM8_compo],
+    #     min_offset: *zero,
+    #     max_offset: *halfday,
+    #   }
+    # - {
+    #     kind: succession,
+    #     activities: [CM9_exame],
+    #     start_after: [TD7_mater],
+    #     min_offset: *threedays,
+    #     max_offset: null,
+    #   }
+    # - {
+    #     kind: succession,
+    #     activities: [CM9_exame],
+    #     start_after: [TP1],
+    #     min_offset: *halfday,
+    #     max_offset: null,
+    #   }
+    # - {
+    #     kind: succession,
+    #     activities: [CM9_exame],
+    #     start_after: [TD6_metal],
+    #     min_offset: *halfday,
+    #     max_offset: null,
+    #   }
+
+  color: pink

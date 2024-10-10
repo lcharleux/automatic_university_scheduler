@@ -4,4 +4,11 @@
 *.env
 **/*.egg-info/*
 /build/*
-sandbox/data.db
+
+doc/examples/basic_scheduling/course_models/wip/*
+doc/examples/basic_scheduling/planification/*
+doc/examples/basic_scheduling/trash/*
+**/sandbox*
+doc/examples/basic_scheduling/existing_activities/extractions/ade-export-polytech-2024-06-19-07-00-57.csv
+doc/examples/basic_scheduling/existing_activities/extractions/raw_data.csv
+**/.DS_Store
