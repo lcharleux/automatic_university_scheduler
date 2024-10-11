@@ -27,7 +27,7 @@ constraints:
           "end": "2025-W01-7 23:00",
         }
 groups:
-  null: []
+  "empty": []
   EPU-3-S6:
     - MECA-FISE-3-A1
     - MECA-FISE-3-A2
