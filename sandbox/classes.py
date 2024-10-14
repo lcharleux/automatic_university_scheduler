@@ -1,7 +1,15 @@
 from typing import List
 from typing import Optional
 from sqlalchemy import ForeignKey
-from sqlalchemy import String, Integer, Boolean, UniqueConstraint, Column, Table
+from sqlalchemy import (
+    String,
+    Integer,
+    Boolean,
+    UniqueConstraint,
+    Column,
+    Table,
+    DateTime,
+)
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
@@ -10,6 +18,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
+import datetime
+from automatic_university_scheduler.datetime import DateTime as DT
 
 
 class Base(DeclarativeBase):
@@ -32,6 +42,13 @@ activity_room_allocation_association_table = Table(
     Column("room_id", ForeignKey("room.id"), primary_key=True),
 )
 
+static_activity_room_allocation_association_table = Table(
+    "static_activity_room_allocation_association_table",
+    Base.metadata,
+    Column("static_activity_id", ForeignKey("static_activity.id"), primary_key=True),
+    Column("room_id", ForeignKey("room.id"), primary_key=True),
+)
+
 activity_teacher_pool_association_table = Table(
     "activity_teacher_pool_association_table",
     Base.metadata,
@@ -46,6 +63,13 @@ activity_teacher_allocation_association_table = Table(
     Column("teacher_id", ForeignKey("teacher.id"), primary_key=True),
 )
 
+static_activity_teacher_allocation_association_table = Table(
+    "static_activity_teacher_allocation_association_table",
+    Base.metadata,
+    Column("static_activity_id", ForeignKey("static_activity.id"), primary_key=True),
+    Column("teacher_id", ForeignKey("teacher.id"), primary_key=True),
+)
+
 student_atomic_groups_association_table = Table(
     "student_atomic_groups_association_table",
     Base.metadata,
@@ -53,16 +77,65 @@ student_atomic_groups_association_table = Table(
     Column("group_id", ForeignKey("students_group.id"), primary_key=True),
 )
 
+activity_groups_association_table = Table(
+    "activity_groups_association_table",
+    Base.metadata,
+    Column("activity_id", ForeignKey("activity.id"), primary_key=True),
+    Column("activity_group_id", ForeignKey("activity_group.id"), primary_key=True),
+)
 
-class AtomicStudent(Base):
-    __tablename__ = "atomic_student"
-    _unique_columnns = ["label"]
+
+class Project(Base):
+    __tablename__ = "project"
+    _unique_columns = ["label"]
 
     id: Mapped[int] = mapped_column(primary_key=True)
     label: Mapped[str] = mapped_column(String(30), unique=True)
+    description: Mapped[str] = mapped_column(String(255), nullable=True)
+    origin_datetime: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False)
+    horizon: Mapped[int] = mapped_column(Integer, nullable=False)
+    activities: Mapped[List["Activity"]] = relationship(
+        "Activity", back_populates="project"
+    )
+    static_activities: Mapped[List["StaticActivity"]] = relationship(
+        "StaticActivity", back_populates="project"
+    )
+    students_groups: Mapped[List["StudentsGroup"]] = relationship(
+        "StudentsGroup", back_populates="project"
+    )
+    atomic_students: Mapped[List["AtomicStudent"]] = relationship(
+        "AtomicStudent", back_populates="project"
+    )
+    activitiy_groups: Mapped[List["ActivityGroup"]] = relationship(
+        "ActivityGroup", back_populates="project"
+    )
+
+    __table_args__ = (UniqueConstraint(*_unique_columns, name="_unique_project"),)
+
+    def __repr__(self) -> str:
+        name = self.__class__.__name__
+        return f"<{name}: id={self.id}, label={self.label}>"
+
+    @property
+    def origin(self):
+        return DT.from_datetime(self.origin_datetime)
+
+    # @property
+    # def horizon(self):
+    #     return DT.from_datetime(self.horizon_datetime)
+
+
+class AtomicStudent(Base):
+    __tablename__ = "atomic_student"
+    _unique_columns = ["label"]
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    label: Mapped[str] = mapped_column(String(30), unique=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
+    project: Mapped["Project"] = relationship(back_populates="atomic_students")
 
     __table_args__ = (
-        UniqueConstraint(*_unique_columnns, name="_unique_atomic_student"),
+        UniqueConstraint(*_unique_columns, name="_unique_atomic_student"),
     )
 
     groups: Mapped[List["StudentsGroup"]] = relationship(
@@ -81,13 +154,15 @@ class AtomicStudent(Base):
 
 class StudentsGroup(Base):
     __tablename__ = "students_group"
-    _unique_columnns = ["label"]
+    _unique_columns = ["label"]
 
     id: Mapped[int] = mapped_column(primary_key=True)
     label: Mapped[str] = mapped_column(String(30), unique=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
+    project: Mapped["Project"] = relationship(back_populates="students_groups")
 
     __table_args__ = (
-        UniqueConstraint(*_unique_columnns, name="_unique_student_groups"),
+        UniqueConstraint(*_unique_columns, name="_unique_student_groups"),
     )
 
     students: Mapped[List["AtomicStudent"]] = relationship(
@@ -99,14 +174,51 @@ class StudentsGroup(Base):
         "Activity", back_populates="students"
     )
 
+    static_activities: Mapped[List["StaticActivity"]] = relationship(
+        "StaticActivity", back_populates="students"
+    )
+
     def __repr__(self) -> str:
         name = self.__class__.__name__
         return f"<{name}: id={self.id}, label={self.label}>"
 
 
+class StaticActivity(Base):
+    __tablename__ = "static_activity"
+    # _unique_columns = ["id"]
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    label: Mapped[str] = mapped_column(String(30))
+    kind: Mapped[str] = mapped_column(String(30), nullable=True)
+    start: Mapped[int] = mapped_column(Integer, nullable=True)
+    duration: Mapped[int] = mapped_column(Integer, nullable=False)
+    course: Mapped[str] = mapped_column(String(30), nullable=True)
+    students_id: Mapped[int] = mapped_column(ForeignKey("students_group.id"))
+    students: Mapped["StudentsGroup"] = relationship(back_populates="static_activities")
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
+    project: Mapped["Project"] = relationship(back_populates="static_activities")
+
+    # ROOMS
+    allocated_rooms: Mapped[List["Room"]] = relationship(
+        secondary=static_activity_room_allocation_association_table,
+        back_populates="static_activities_allocations",
+    )
+    # TEACHER
+    allocated_teachers: Mapped[List["Teacher"]] = relationship(
+        secondary=static_activity_teacher_allocation_association_table,
+        back_populates="static_activities_allocations",
+    )
+
+    # __table_args__ = (UniqueConstraint(*_unique_columns, name="_unique_static_activity"),)
+
+    def __repr__(self) -> str:
+        name = self.__class__.__name__
+        return f"<{name}: id={self.id}, name={self.label}, kind={self.kind}, start={self.start}, duration={self.duration}>"
+
+
 class Activity(Base):
     __tablename__ = "activity"
-    _unique_columnns = ["course", "label"]
+    _unique_columns = ["course", "label", "project_id"]
 
     id: Mapped[int] = mapped_column(primary_key=True)
     label: Mapped[str] = mapped_column(String(30))
@@ -117,6 +229,8 @@ class Activity(Base):
     kind: Mapped[str] = mapped_column(String(30))
     students_id: Mapped[int] = mapped_column(ForeignKey("students_group.id"))
     students: Mapped["StudentsGroup"] = relationship(back_populates="activities")
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
+    project: Mapped["Project"] = relationship(back_populates="activities")
 
     # ROOMS
     room_pool: Mapped[List["Room"]] = relationship(
@@ -139,27 +253,36 @@ class Activity(Base):
         back_populates="activities_allocations",
     )
 
-    __table_args__ = (UniqueConstraint(*_unique_columnns, name="_unique_activity"),)
+    activities_groups: Mapped[List["ActivityGroup"]] = relationship(
+        secondary=activity_groups_association_table,
+        back_populates="activities",
+    )
+    __table_args__ = (UniqueConstraint(*_unique_columns, name="_unique_activity"),)
 
     def __repr__(self) -> str:
         name = self.__class__.__name__
-        return f"<{name}: id={self.id}, name={self.label}, kind={self.kind}, course={self.course}, start={self.start}, duration={self.duration},tunable:{self.tunable} >"
+        return f"<{name}: id={self.id}, name={self.label}, kind={self.kind}, course={self.course}, start={self.start}, duration={self.duration}>"
 
-    @classmethod
-    def get_or_create(cls, session, **kwargs):
-        instance = session.query(cls).filter_by(**kwargs).first()
-        if instance:
-            return instance
-        else:
-            instance = cls(**kwargs)
-            session.add(instance)
-            session.commit()
-            return instance
+
+class ActivityGroup(Base):
+    __tablename__ = "activity_group"
+    _unique_columns = ["label", "course"]
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    label: Mapped[str] = mapped_column(String(30), unique=True)
+    course: Mapped[str] = mapped_column(String(30), nullable=False)
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
+    project: Mapped["Project"] = relationship(back_populates="activitiy_groups")
+
+    activities: Mapped[List["Activity"]] = relationship(
+        secondary=activity_groups_association_table,
+        back_populates="activities_groups",
+    )
 
 
 class Room(Base):
     __tablename__ = "room"
-    _unique_columnns = ["label"]
+    _unique_columns = ["label"]
 
     id: Mapped[int] = mapped_column(primary_key=True)
     label: Mapped[str] = mapped_column(String(30), unique=True)
@@ -171,7 +294,11 @@ class Room(Base):
         secondary=activity_room_allocation_association_table,
         back_populates="allocated_rooms",
     )
-    __table_args__ = (UniqueConstraint(*_unique_columnns, name="_unique_room"),)
+    static_activities_allocations: Mapped[List["StaticActivity"]] = relationship(
+        secondary=static_activity_room_allocation_association_table,
+        back_populates="allocated_rooms",
+    )
+    __table_args__ = (UniqueConstraint(*_unique_columns, name="_unique_room"),)
 
     def __repr__(self) -> str:
         name = self.__class__.__name__
@@ -180,7 +307,7 @@ class Room(Base):
 
 class Teacher(Base):
     __tablename__ = "teacher"
-    _unique_columnns = ["label"]
+    _unique_columns = ["label"]
 
     id: Mapped[int] = mapped_column(primary_key=True)
     label: Mapped[str] = mapped_column(String(30), unique=True)
@@ -192,8 +319,25 @@ class Teacher(Base):
         secondary=activity_teacher_allocation_association_table,
         back_populates="allocated_teachers",
     )
-    __table_args__ = (UniqueConstraint(*_unique_columnns, name="_unique_teacher"),)
+    static_activities_allocations: Mapped[List["StaticActivity"]] = relationship(
+        secondary=static_activity_teacher_allocation_association_table,
+        back_populates="allocated_teachers",
+    )
+    __table_args__ = (UniqueConstraint(*_unique_columns, name="_unique_teacher"),)
 
     def __repr__(self) -> str:
         name = self.__class__.__name__
         return f"<{name}: id={self.id}, label={self.label}>"
+
+
+# class AfterConstraint(Base):
+#     __tablename__ = "after_constraint"
+#     _unique_columns = ["label", "kind", "project_id"]
+
+#     id: Mapped[int] = mapped_column(primary_key=True)
+#     label: Mapped[str] = mapped_column(String(30))
+#     kind: Mapped[str] = mapped_column(String(30))
+#     from_activity_id: Mapped[int] = mapped_column(ForeignKey("activity.id"))
+#     from_activity: Mapped["Activity"] = relationship("Activity", foreign_keys=[from_activity_id])
+#     to_activity_id: Mapped[int] = mapped_column(ForeignKey("activity.id"))
+#     to_activity: Mapped["Activity"] = relationship("Activity", foreign_keys=[to_activity_id])
