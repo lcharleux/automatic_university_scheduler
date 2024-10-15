@@ -109,6 +109,9 @@ class Project(Base):
     activitiy_groups: Mapped[List["ActivityGroup"]] = relationship(
         "ActivityGroup", back_populates="project"
     )
+    starts_after_constraints: Mapped[List["StartsAfterConstraint"]] = relationship(
+        "StartsAfterConstraint", back_populates="project"
+    )
 
     __table_args__ = (UniqueConstraint(*_unique_columns, name="_unique_project"),)
 
@@ -261,7 +264,7 @@ class Activity(Base):
 
     def __repr__(self) -> str:
         name = self.__class__.__name__
-        return f"<{name}: id={self.id}, name={self.label}, kind={self.kind}, course={self.course}, start={self.start}, duration={self.duration}>"
+        return f"<{name}: id={self.id}, label={self.label}, kind={self.kind}, course={self.course}, start={self.start}, duration={self.duration}>"
 
 
 class ActivityGroup(Base):
@@ -278,6 +281,20 @@ class ActivityGroup(Base):
         secondary=activity_groups_association_table,
         back_populates="activities_groups",
     )
+
+    starts_after: Mapped[List["StartsAfterConstraint"]] = relationship(
+        foreign_keys="StartsAfterConstraint.from_activity_group_id",
+        back_populates="from_activity_group",
+    )
+    is_before: Mapped[List["StartsAfterConstraint"]] = relationship(
+        foreign_keys="StartsAfterConstraint.to_activity_group_id",
+        back_populates="to_activity_group",
+    )
+
+    def __repr__(self) -> str:
+        name = self.__class__.__name__
+        nact = len(self.activities)
+        return f"<{name}: id={self.id}, label={self.label}, course={self.course} with {nact} activities >"
 
 
 class Room(Base):
@@ -330,14 +347,21 @@ class Teacher(Base):
         return f"<{name}: id={self.id}, label={self.label}>"
 
 
-# class AfterConstraint(Base):
-#     __tablename__ = "after_constraint"
-#     _unique_columns = ["label", "kind", "project_id"]
+class StartsAfterConstraint(Base):
+    __tablename__ = "starts_after_constraint"
+    _unique_columns = ["label", "kind", "project_id"]
 
-#     id: Mapped[int] = mapped_column(primary_key=True)
-#     label: Mapped[str] = mapped_column(String(30))
-#     kind: Mapped[str] = mapped_column(String(30))
-#     from_activity_id: Mapped[int] = mapped_column(ForeignKey("activity.id"))
-#     from_activity: Mapped["Activity"] = relationship("Activity", foreign_keys=[from_activity_id])
-#     to_activity_id: Mapped[int] = mapped_column(ForeignKey("activity.id"))
-#     to_activity: Mapped["Activity"] = relationship("Activity", foreign_keys=[to_activity_id])
+    id: Mapped[int] = mapped_column(primary_key=True)
+    label: Mapped[str] = mapped_column(String(30), nullable=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
+    project: Mapped["Project"] = relationship(back_populates="starts_after_constraints")
+    from_activity_group_id: Mapped[int] = mapped_column(ForeignKey("activity_group.id"))
+    from_activity_group: Mapped["ActivityGroup"] = relationship(
+        "ActivityGroup",
+        foreign_keys=[from_activity_group_id],
+        back_populates="starts_after",
+    )
+    to_activity_group_id: Mapped[int] = mapped_column(ForeignKey("activity_group.id"))
+    to_activity_group: Mapped["ActivityGroup"] = relationship(
+        "ActivityGroup", foreign_keys=[to_activity_group_id], back_populates="is_before"
+    )
