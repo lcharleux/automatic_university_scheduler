@@ -349,11 +349,20 @@ class Teacher(Base):
 
 class StartsAfterConstraint(Base):
     __tablename__ = "starts_after_constraint"
-    _unique_columns = ["label", "kind", "project_id"]
+    _unique_columns = [
+        "label",
+        "project_id",
+        "from_activity_group_id",
+        "to_activity_group_id",
+        "min_offset",
+        "max_offset",
+    ]
 
     id: Mapped[int] = mapped_column(primary_key=True)
     label: Mapped[str] = mapped_column(String(30), nullable=True)
     project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
+    min_offset: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    max_offset: Mapped[int] = mapped_column(Integer, nullable=True)
     project: Mapped["Project"] = relationship(back_populates="starts_after_constraints")
     from_activity_group_id: Mapped[int] = mapped_column(ForeignKey("activity_group.id"))
     from_activity_group: Mapped["ActivityGroup"] = relationship(
@@ -365,3 +374,9 @@ class StartsAfterConstraint(Base):
     to_activity_group: Mapped["ActivityGroup"] = relationship(
         "ActivityGroup", foreign_keys=[to_activity_group_id], back_populates="is_before"
     )
+
+    def __repr__(self) -> str:
+        name = self.__class__.__name__
+        from_label = self.from_activity_group.label
+        to_label = self.to_activity_group.label
+        return f"<{name}: id={self.id}, label={self.label}, min_offset={self.min_offset}, max_offset={self.max_offset}, from={from_label}, to={to_label}>"

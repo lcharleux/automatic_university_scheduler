@@ -8,6 +8,7 @@ from classes import (
     Project,
     StaticActivity,
     ActivityGroup,
+    StartsAfterConstraint,
 )
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
@@ -19,6 +20,7 @@ from automatic_university_scheduler.datetime import DateTime as DT
 from automatic_university_scheduler.datetime import datetime_to_slot
 from automatic_university_scheduler.scheduling import load_setup, read_json_data
 import math
+import itertools
 
 
 def process_constraint_static_activity(
@@ -229,6 +231,33 @@ for course_label, course_data in data.items():
             session, ActivityGroup, **activity_group_kwargs, commit=True
         )
         activities_groups_dic[(course_label, group_label)] = new_activity_group
-
+    for constraints_data in course_data["constraints"]:
+        if constraints_data["kind"] == "succession":
+            print("Creating constraint", constraints_data)
+            from_act_groups_labels = constraints_data["start_after"]
+            to_act_groups_labels = constraints_data["activities"]
+            min_offset = constraints_data["min_offset"]
+            max_offset = constraints_data["max_offset"]
+            for from_act_group_label, to_act_group_label in itertools.product(
+                from_act_groups_labels, to_act_groups_labels
+            ):
+                from_act_group = activities_groups_dic[
+                    (course_label, from_act_group_label)
+                ]
+                to_act_group = activities_groups_dic[(course_label, to_act_group_label)]
+                starts_after_constraint_kwargs = {
+                    "label": "starts_after",
+                    "project": project,
+                    "min_offset": min_offset,
+                    "max_offset": max_offset,
+                    "from_activity_group": from_act_group,
+                    "to_activity_group": to_act_group,
+                }
+                get_or_create(
+                    session,
+                    StartsAfterConstraint,
+                    **starts_after_constraint_kwargs,
+                    commit=True,
+                )
 
 session.commit()
