@@ -19,7 +19,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 import datetime
-from automatic_university_scheduler.datetime import DateTime as DT
+from automatic_university_scheduler.datetimeutils import DateTime as DT
+from automatic_university_scheduler.datetimeutils import TimeDelta
+import math
 
 
 class Base(DeclarativeBase):
@@ -84,6 +86,13 @@ activity_groups_association_table = Table(
     Column("activity_group_id", ForeignKey("activity_group.id"), primary_key=True),
 )
 
+activity_kind_daily_slots_association_table = Table(
+    "activity_kind_daily_slots_association_table",
+    Base.metadata,
+    Column("activity_kind_id", ForeignKey("activity_kind.id"), primary_key=True),
+    Column("daily_slot_id", ForeignKey("daily_slot.id"), primary_key=True),
+)
+
 
 class Project(Base):
     __tablename__ = "project"
@@ -94,6 +103,7 @@ class Project(Base):
     description: Mapped[str] = mapped_column(String(255), nullable=True)
     origin_datetime: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False)
     horizon: Mapped[int] = mapped_column(Integer, nullable=False)
+    time_slot_duration_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
     activities: Mapped[List["Activity"]] = relationship(
         "Activity", back_populates="project"
     )
@@ -112,6 +122,18 @@ class Project(Base):
     starts_after_constraints: Mapped[List["StartsAfterConstraint"]] = relationship(
         "StartsAfterConstraint", back_populates="project"
     )
+    daily_slots: Mapped[List["DailySlot"]] = relationship(
+        "DailySlot", back_populates="project"
+    )
+    activity_kinds: Mapped[List["ActivityKind"]] = relationship(
+        "ActivityKind", back_populates="project"
+    )
+    week_days: Mapped[List["WeekDay"]] = relationship(
+        "WeekDay", back_populates="project"
+    )
+    week_structure: Mapped[List["WeekStructure"]] = relationship(
+        "WeekStructure", back_populates="project"
+    )
 
     __table_args__ = (UniqueConstraint(*_unique_columns, name="_unique_project"),)
 
@@ -126,6 +148,18 @@ class Project(Base):
     # @property
     # def horizon(self):
     #     return DT.from_datetime(self.horizon_datetime)
+
+    @property
+    def time_slot_duration(self):
+        return TimeDelta(seconds=self.time_slot_duration_seconds)
+
+    @property
+    def time_slots_per_day(self):
+        return math.floor(24 * 3600 / self.time_slot_duration_seconds)
+
+    @property
+    def time_slots_per_week(self):
+        return self.time_slots_per_day * 7
 
 
 class AtomicStudent(Base):
@@ -196,7 +230,9 @@ class StaticActivity(Base):
     start: Mapped[int] = mapped_column(Integer, nullable=True)
     duration: Mapped[int] = mapped_column(Integer, nullable=False)
     course: Mapped[str] = mapped_column(String(30), nullable=True)
-    students_id: Mapped[int] = mapped_column(ForeignKey("students_group.id"))
+    students_id: Mapped[int] = mapped_column(
+        ForeignKey("students_group.id"), nullable=True
+    )
     students: Mapped["StudentsGroup"] = relationship(back_populates="static_activities")
     project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
     project: Mapped["Project"] = relationship(back_populates="static_activities")
@@ -227,9 +263,9 @@ class Activity(Base):
     label: Mapped[str] = mapped_column(String(30))
     start: Mapped[int] = mapped_column(Integer, nullable=True)
     duration: Mapped[int] = mapped_column(Integer, nullable=False)
-    tunable: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     course: Mapped[str] = mapped_column(String(30), nullable=False)
-    kind: Mapped[str] = mapped_column(String(30))
+    kind_id: Mapped[int] = mapped_column(ForeignKey("activity_kind.id"))
+    kind: Mapped["ActivityKind"] = relationship("ActivityKind")
     students_id: Mapped[int] = mapped_column(ForeignKey("students_group.id"))
     students: Mapped["StudentsGroup"] = relationship(back_populates="activities")
     project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
@@ -322,12 +358,97 @@ class Room(Base):
         return f"<{name}: id={self.id}, label={self.label}, capacity={self.capacity}>"
 
 
+# WIP
+class ActivityKind(Base):
+    __tablename__ = "activity_kind"
+    _unique_columns = ["label"]
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    label: Mapped[str] = mapped_column(String(30), unique=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
+    project: Mapped["Project"] = relationship(back_populates="activity_kinds")
+    activities: Mapped[List["Activity"]] = relationship(back_populates="kind")
+
+    allowed_daily_start_slots: Mapped[List["DailySlot"]] = relationship(
+        secondary=activity_kind_daily_slots_association_table,
+        back_populates="allowed_by",
+    )
+
+    def __repr__(self) -> str:
+        name = self.__class__.__name__
+        return f"<{name}: id={self.id}, label={self.label}>"
+
+
+class DailySlot(Base):
+    __tablename__ = "daily_slot"
+    _unique_columns = ["label", "project_id"]
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    label: Mapped[str] = mapped_column(String(30), unique=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
+    project: Mapped["Project"] = relationship(back_populates="daily_slots")
+    week_structure: Mapped[List["WeekStructure"]] = relationship(
+        back_populates="daily_slot"
+    )
+
+    allowed_by: Mapped[List["ActivityKind"]] = relationship(
+        secondary=activity_kind_daily_slots_association_table,
+        back_populates="allowed_daily_start_slots",
+    )
+
+    def __repr__(self) -> str:
+        name = self.__class__.__name__
+        return f"<{name}: id={self.id}, label={self.label}>"
+
+
+class WeekDay(Base):
+    __tablename__ = "week_day"
+    _unique_columns = ["label"]
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
+    project: Mapped["Project"] = relationship(back_populates="week_days")
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    label: Mapped[str] = mapped_column(String(30), unique=True)
+    week_structure: Mapped[List["WeekStructure"]] = relationship(
+        back_populates="week_day"
+    )
+
+    def __repr__(self) -> str:
+        name = self.__class__.__name__
+        return f"<{name}: id={self.id}, label={self.label}>"
+
+
+class WeekStructure(Base):
+    __tablename__ = "week_structure"
+    _unique_columns = ["project_id", "week_day_id", "daily_slot_id"]
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
+    project: Mapped["Project"] = relationship(back_populates="week_structure")
+    week_day_id: Mapped[int] = mapped_column(ForeignKey("week_day.id"))
+    week_day: Mapped["WeekDay"] = relationship(back_populates="week_structure")
+    daily_slot_id: Mapped[int] = mapped_column(ForeignKey("daily_slot.id"))
+    daily_slot: Mapped["DailySlot"] = relationship(back_populates="week_structure")
+    available: Mapped[bool] = mapped_column(Boolean, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint(*_unique_columns, name="_unique_week_structure"),
+    )
+
+    def __repr__(self) -> str:
+        name = self.__class__.__name__
+        wd = self.week_day.label
+        ds = self.daily_slot.label
+        return f"<{name}: id={self.id}, week_day={wd}, daily_slot={ds}, available={self.available}>"
+
+
 class Teacher(Base):
     __tablename__ = "teacher"
     _unique_columns = ["label"]
 
     id: Mapped[int] = mapped_column(primary_key=True)
     label: Mapped[str] = mapped_column(String(30), unique=True)
+    full_name: Mapped[str] = mapped_column(String(50), nullable=True)
 
     activities_pools: Mapped[List["Activity"]] = relationship(
         secondary=activity_teacher_pool_association_table, back_populates="teacher_pool"

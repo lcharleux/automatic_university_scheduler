@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from automatic_university_scheduler.datetime import DateTime
+from automatic_university_scheduler.datetimeutils import DateTime
 
 
 def extract_constraints_from_table(

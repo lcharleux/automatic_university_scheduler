@@ -6,7 +6,7 @@ import pandas as pd
 import os
 from scipy import ndimage
 import json
-from automatic_university_scheduler.datetime import (
+from automatic_university_scheduler.datetimeutils import (
     DateTime,
     TimeDelta,
     TimeInterval,

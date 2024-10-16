@@ -37,7 +37,7 @@ from automatic_university_scheduler.utils import (
     Messages,
 )
 
-from automatic_university_scheduler.datetime import (
+from automatic_university_scheduler.datetimeutils import (
     DateTime,
     TimeDelta,
     TimeInterval,

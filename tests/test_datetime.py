@@ -1,7 +1,11 @@
 import pytest
 import datetime
 from datetime import datetime as dt
-from automatic_university_scheduler.datetime import DateTime, TimeDelta, TimeInterval
+from automatic_university_scheduler.datetimeutils import (
+    DateTime,
+    TimeDelta,
+    TimeInterval,
+)
 
 
 class TestDateTime:

@@ -8,7 +8,7 @@
 
 import pandas as pd
 import numpy as np
-from automatic_university_scheduler.datetime import DateTime
+from automatic_university_scheduler.datetimeutils import DateTime
 from automatic_university_scheduler.scheduling import load_setup
 from automatic_university_scheduler.utils import (
     dump_to_yaml,

@@ -7,15 +7,15 @@ AA:
         "kind": "datetime",
         "start": "2024-W01-3 08:00",
         "end": "2024-W01-3 18:00",
-        "repeat": 52,
+        "repeat": 104,
         "offset": "1w",
       }
     - {
-        # DOES NOT WORK ON MONDAY
+        # DOES NOT WORK ON MONDAY MORNING
         "kind": "datetime",
         "start": "2024-W01-1 08:00",
         "end": "2024-W01-1 12:00",
-        "repeat": 52,
+        "repeat": 104,
         "offset": "1w",
       }
     - {
@@ -32,6 +32,6 @@ BB:
         "kind": "datetime",
         "start": "2024-W01-1 12:00",
         "end": "2024-W01-1 18:00",
-        "repeat": 52,
+        "repeat":104,
         "offset": "1w",
       }

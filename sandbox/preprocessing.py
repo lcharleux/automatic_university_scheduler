@@ -1,0 +1,313 @@
+from db_utils import get_or_create
+from classes import AtomicStudent, StudentsGroup, StaticActivity
+from automatic_university_scheduler.datetimeutils import datetime_to_slot, TimeDelta
+from automatic_university_scheduler.datetimeutils import DateTime as DT
+import math
+import datetime
+from classes import (
+    DailySlot,
+    Teacher,
+    Room,
+    Activity,
+    ActivityGroup,
+    StartsAfterConstraint,
+    ActivityKind,
+    WeekStructure,
+    WeekDay,
+)
+import numpy as np
+import itertools
+import copy
+
+
+def process_constraint_static_activity(
+    constraint, origin_datetime, horizon, time_slot_duration, **kwargs
+):
+    """
+    Process a constraint and return a dictionary with the necessary information to create a StaticActivity object.
+    """
+    out = []
+    if "repeat" not in constraint.keys():
+        repeat = 1
+        offset = 0
+    else:
+        repeat = constraint["repeat"]
+        offset = constraint["offset"]
+        if type(offset) == str:
+            offset = TimeDelta.from_str(offset).to_slots(time_slot_duration)
+    start0 = datetime_to_slot(
+        DT.from_str(constraint["start"]),
+        origin_datetime=origin_datetime,
+        slot_duration=time_slot_duration,
+        round="floor",
+    )
+    end0 = datetime_to_slot(
+        DT.from_str(constraint["end"]),
+        origin_datetime=origin_datetime,
+        slot_duration=time_slot_duration,
+        round="ceil",
+    )
+    for repeat in range(repeat):
+        start = min(max(start0 + offset * repeat, 0), horizon)
+        end = min(max(end0 + offset * repeat, 0), horizon)
+        duration = end - start
+        if duration > 0:
+            dic = copy.copy(kwargs)
+            dic["start"] = start
+            dic["duration"] = duration
+            out.append(dic)
+
+    return out
+
+
+def create_students(
+    session, project, students_data, origin_datetime, time_slot_duration, horizon
+):
+    atomic_students = {}
+    students_groups = {}
+    atomic_students_labels = set()
+    students_groups_labels = set()
+    for group, group_data in students_data["groups"].items():
+        students_groups_labels.add(group)
+        atomic_students_labels.update(group_data)
+    for label in sorted(list(atomic_students_labels)):
+        atomic_students[label] = get_or_create(
+            session, AtomicStudent, label=label, project=project, commit=True
+        )
+    for label in sorted(list(students_groups_labels)):
+        students = np.array(
+            [atomic_students[label] for label in students_data["groups"][label]]
+        )
+        labs = [s.label for s in students]
+        students = (students[np.argsort(labs)]).tolist()
+        students_groups[label] = get_or_create(
+            session,
+            StudentsGroup,
+            label=label,
+            students=students,
+            project=project,
+            commit=True,
+        )
+
+    for group_label, group_data in students_data["constraints"].items():
+        group = students_groups[group_label]
+        if "unavailable" in group_data.keys():
+            unvailable_data = group_data["unavailable"]
+            for constraint in unvailable_data:
+                if constraint["kind"] == "datetime":
+                    static_activity_kwargs = {
+                        "project": project,
+                        "kind": "students unavailable",
+                        "students": group,
+                        "label": "unavailable",
+                    }
+                    static_activities_kwargs = process_constraint_static_activity(
+                        constraint=constraint,
+                        origin_datetime=origin_datetime,
+                        time_slot_duration=time_slot_duration,
+                        horizon=horizon,
+                        **static_activity_kwargs,
+                    )
+                    for static_activity_kwargs in static_activities_kwargs:
+                        get_or_create(
+                            session,
+                            StaticActivity,
+                            **static_activity_kwargs,
+                            commit=True,
+                        )
+    return atomic_students, students_groups
+
+
+def create_daily_slots(session, project, time_slot_duration):
+    """
+    Create daily slots for a given project and time slot duration.
+    """
+    daily_slots_dic = {}
+    Ndslots = math.floor(datetime.timedelta(days=1) / time_slot_duration)
+    slot = time_slot_duration * 0
+    for i in range(Ndslots):
+        dslot_label = slot.to_str()
+        slot += time_slot_duration
+        daily_slot = get_or_create(
+            session, DailySlot, label=dslot_label, project=project, commit=True
+        )
+        daily_slots_dic[i + 1] = daily_slot
+    return daily_slots_dic
+
+
+def create_teachers(
+    session, project, teachers_data, origin_datetime, time_slot_duration, horizon
+):
+    teachers = {}
+    teachers_unavailable_static_activities = {}
+    for label, teacher_data in teachers_data.items():
+        full_name = teacher_data["full_name"]
+        teachers[label] = get_or_create(
+            session, Teacher, label=label, full_name=full_name, commit=True
+        )
+        teachers_unavailable_static_activities[label] = []
+        for constraint in teacher_data["unavailable"]:
+            static_activity_kwargs = {
+                "project": project,
+                "kind": "teacher unavailable",
+                "allocated_teachers": [teachers[label]],
+                "label": f"teacher {label} unavailable",
+            }
+            static_activities_kwargs = process_constraint_static_activity(
+                constraint=constraint,
+                origin_datetime=origin_datetime,
+                time_slot_duration=time_slot_duration,
+                horizon=horizon,
+                **static_activity_kwargs,
+            )
+
+            for static_activity_kwargs in static_activities_kwargs:
+                act = get_or_create(
+                    session, StaticActivity, **static_activity_kwargs, commit=True
+                )
+                teachers_unavailable_static_activities[label].append(act)
+    return teachers, teachers_unavailable_static_activities
+
+
+def create_activities_and_rooms(
+    session, project, courses_data, teachers, students_groups, activity_kinds
+):
+    """ """
+    rooms = {}
+    activities_dic = {}
+    activities_groups_dic = {}
+    rooms_labels = set()
+
+    for course, course_data in courses_data.items():
+        activities = course_data["activities"]
+        for activity, activity_data in activities.items():
+            room_pool = activity_data["rooms"]["pool"]
+            teacher_pool = activity_data["teachers"]["pool"]
+            rooms_labels.update(room_pool)
+
+    for label in sorted(list(rooms_labels)):
+        rooms[label] = get_or_create(
+            session, Room, label=label, capacity=30, commit=True
+        )
+
+    for course_label, course_data in courses_data.items():
+        activities = course_data["activities"]
+        for activity_label, activity_data in activities.items():
+            activity_args = {
+                "label": activity_label,
+                "course": course_label,
+                "project": project,
+            }
+            activity_args["kind"] = activity_kinds[activity_data["kind"]]
+            activity_args["duration"] = activity_data["duration"]
+            activity_args["room_pool"] = [
+                rooms[l] for l in activity_data["rooms"]["pool"]
+            ]
+            activity_args["teacher_pool"] = [
+                teachers[l] for l in activity_data["teachers"]["pool"]
+            ]
+            activity_args["students"] = students_groups[activity_data["students"]]
+            # new_activity = Activity(**activity_args)
+            new_activity = get_or_create(
+                session, Activity, **activity_args, commit=True
+            )
+            activities_dic[(course_label, activity_label)] = new_activity
+        for group_label, group_data in course_data["inner_activity_groups"].items():
+            gra = [activities_dic[(course, l)] for l in group_data]
+            activity_group_kwargs = {
+                "label": group_label,
+                "activities": gra,
+                "project": project,
+                "course": course_label,
+            }
+            new_activity_group = get_or_create(
+                session, ActivityGroup, **activity_group_kwargs, commit=True
+            )
+            activities_groups_dic[(course_label, group_label)] = new_activity_group
+        for constraints_data in course_data["constraints"]:
+            if constraints_data["kind"] == "succession":
+                from_act_groups_labels = constraints_data["start_after"]
+                to_act_groups_labels = constraints_data["activities"]
+                min_offset = constraints_data["min_offset"]
+                max_offset = constraints_data["max_offset"]
+                for from_act_group_label, to_act_group_label in itertools.product(
+                    from_act_groups_labels, to_act_groups_labels
+                ):
+                    from_act_group = activities_groups_dic[
+                        (course_label, from_act_group_label)
+                    ]
+                    to_act_group = activities_groups_dic[
+                        (course_label, to_act_group_label)
+                    ]
+                    starts_after_constraint_kwargs = {
+                        "label": "starts_after",
+                        "project": project,
+                        "min_offset": min_offset,
+                        "max_offset": max_offset,
+                        "from_activity_group": from_act_group,
+                        "to_activity_group": to_act_group,
+                    }
+                    get_or_create(
+                        session,
+                        StartsAfterConstraint,
+                        **starts_after_constraint_kwargs,
+                        commit=True,
+                    )
+    return activities_dic, activities_groups_dic, rooms
+
+
+def create_activity_kinds(session, project, project_data, daily_slots_dic):
+    activity_kinds = {}
+    for kind_label, kind_data in project_data["ACTIVITIES_KINDS"].items():
+        kind_kwargs = {"session": session, "project": project, "label": kind_label}
+        allowed_daily_start_slots = [
+            daily_slots_dic[i] for i in kind_data["allowed_start_time_slots"]
+        ]
+        activity_kinds[kind_label] = get_or_create(
+            allowed_daily_start_slots=allowed_daily_start_slots,
+            cls=ActivityKind,
+            **kind_kwargs,
+            commit=True,
+        )
+    return activity_kinds
+
+
+def create_week_structure(session, project, project_data, daily_slots, week_days):
+    week_structure = {}
+    wdata = project_data["WEEK_STRUCTURE"]
+    for (
+        weekday,
+        ddata,
+    ) in enumerate(wdata):
+        for slot, value in enumerate(ddata):
+            daily_slot = daily_slots[slot + 1]
+            week_day = week_days[weekday + 1]
+            available = value != 0
+            # print(week_day.id, daily_slot.id, available, daily_slot)
+            week_structure[(week_day.id, daily_slot.id)] = get_or_create(
+                session,
+                WeekStructure,
+                week_day_id=week_day.id,
+                daily_slot_id=daily_slot.id,
+                available=available,
+                project=project,
+            )
+    return week_structure
+
+
+def create_weekdays(session, project):
+    week_days = {}
+    for i in range(7):
+        days_names = [
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday",
+            "sunday",
+        ]
+        week_days[i + 1] = get_or_create(
+            session, WeekDay, label=days_names[i], project=project
+        )
+    return week_days

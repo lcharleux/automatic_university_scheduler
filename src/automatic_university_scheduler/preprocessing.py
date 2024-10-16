@@ -3,7 +3,7 @@ import pandas as pd
 import yaml
 from automatic_university_scheduler.scheduling import Activity, Course
 from automatic_university_scheduler.utils import create_directories
-from automatic_university_scheduler.datetime import (
+from automatic_university_scheduler.datetimeutils import (
     TimeDelta,
     DateTime,
     datetime_to_slot,

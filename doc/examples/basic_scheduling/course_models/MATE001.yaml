@@ -83,8 +83,8 @@ MATE001:
   constraints:
     - {
         kind: succession,
-        activities: [CM1_mater],
-        start_after: [TD1_metal],
+        activities: [TD1_metal],
+        start_after: [CM1_mater],
         min_offset: *oneday,
         max_offset: null,
       }
