@@ -996,9 +996,9 @@ def get_absolute_week_duration_deviation(
                 abs_week_residual == mean_week_duration - week_duration
             ).OnlyEnforceIf(positive_residual.Not())
             week_duration_residuals.append(abs_week_residual)
-    makespan = model.NewIntVar(0, horizon, "makespan")
-    model.Add(makespan == sum(week_duration_residuals))
-    return makespan
+    value = model.NewIntVar(0, horizon, "makespan")
+    model.Add(value == sum(week_duration_residuals))
+    return value
 
 
 def load_setup(path):

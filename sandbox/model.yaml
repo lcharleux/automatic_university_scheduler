@@ -1,0 +1,338 @@
+# SETUP
+setup:
+  origin_datetime: "2024-W36-1 00:00"
+  horizon_datetime: "2024-W37-7 23:59"
+  week_structure: [
+      #  0h   1h   2h   3h   4h   5h   6h   7h   8h   9h   10h  11h  12h  13h  14h  15h  16h  17h  18h  19h  20h  21h  22h  23h
+      "0000 0000 0000 0000 0000 0000 0000 0000 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 0000 0000 0000 0000 0000", # MONDAY
+      "0000 0000 0000 0000 0000 0000 0000 0000 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 0000 0000 0000 0000 0000", # TUESDAY
+      "0000 0000 0000 0000 0000 0000 0000 0000 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 0000 0000 0000 0000 0000", # WEDNESDAY
+      "0000 0000 0000 0000 0000 0000 0000 0000 1111 1111 1111 1111 1111 1111 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000", # THURSDAY
+      "0000 0000 0000 0000 0000 0000 0000 0000 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 0000 0000 0000 0000 0000", # FRIDAY
+      "0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000", # SATRUDAY
+      "0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000", # SUNDAY
+    ]
+  activity_kinds:
+    CM:
+      allowed_start_time_slots:
+        - 33
+        - 40
+        - 53
+        - 60
+        - 67
+    CM_YM:
+      allowed_start_time_slots:
+        - 40
+        - 53
+        - 60
+    EX:
+      allowed_start_time_slots:
+        - 33
+        - 40
+        - 53
+        - 60
+        - 67
+    TD:
+      allowed_start_time_slots:
+        - 33
+        - 40
+        - 53
+        - 60
+        - 67
+    TD_MB:
+      allowed_start_time_slots:
+        - 46
+    TD_YM:
+      allowed_start_time_slots:
+        - 40
+        - 53
+        - 60
+    TP:
+      allowed_start_time_slots:
+        - 32
+        - 53
+        - 57
+
+_internal_variables:
+  durations:
+    - &zero 0
+    - &oneday 96
+    - &halfday 48
+    - &twodays 192
+    - &threedays 288
+    - &fourdays 384
+    - &fivedays 480
+    - &oneweek 672
+    - &twoweeks 1344
+  room_pools:
+    - &room_IDU-3-G-TD ["A-POLY-C109"]
+    - &room_IDU-3-G1 ["A-POLY-C109"]
+    - &room_IDU-3-G2 ["A-POLY-C109"]
+    - &room_IDU-3_SNI3 ["A-POLY-B120"]
+    - &room_MECA-FISE-3 ["A-POLY-B120"]
+    - &room_MECA-FISE-3_A_TD ["A-POLY-C110"]
+    - &room_MECA-FISE-3_B_TD ["A-POLY-C109"]
+    - &room_MECA-FISE-3_C_TD ["A-POLY-A204"]
+    - &room_SNI-3_D_TD ["A-POLY-A022"]
+    - &room_SNI-3_D1 ["A-POLY-A022"]
+    - &room_SNI-3_D2 ["A-POLY-A022"]
+    - &room_amphi ["A-POLY-B120"]
+    - &room_amphi_x2 ["A-POLY-B120", "A-POLY-B014"]
+    - &room_info_rooms [
+        "A-POLY-A030",
+        "A-POLY-C202",
+        "A-POLY-C209",
+        "A-POLY-C210",
+        "A-POLY-C217",
+      ]
+    - &room_big_info_rooms [
+        "A-POLY-C213",
+        "A-POLY-C214",
+        "A-POLY-C215",
+        "A-POLY-C216",
+        "A-POLY-C217",
+      ]
+    - &room_salle_proto3D ["A-POLY-C102"]
+
+students:
+  groups:
+
+    "empty": []
+    EPU-3-S6:
+      - MECA-FISE-3-A1
+      - MECA-FISE-3-A2
+      - MECA-FISE-3-B1
+      - MECA-FISE-3-B2
+      - MECA-FISE-3-C1
+      - MECA-FISE-3-C2
+      - SNI-3-D1
+      - IDU-3-G1
+      - IDU-3-G2
+    EPU-3-S5:
+      - MECA-FISE-3-A1
+      - MECA-FISE-3-A2
+      - MECA-FISE-3-B1
+      - MECA-FISE-3-B2
+      - MECA-FISE-3-C1
+      - MECA-FISE-3-C2
+      - SNI-3-D1
+      - IDU-3-G1
+      - IDU-3-G2
+    SNI-3, MECA-3, IDU-3:
+      - MECA-FISE-3-A1
+      - MECA-FISE-3-A2
+      - MECA-FISE-3-B1
+      - MECA-FISE-3-B2
+      - MECA-FISE-3-C1
+      - MECA-FISE-3-C2
+      - SNI-3-D1
+      - IDU-3-G1
+      - IDU-3-G2
+    MECA-3:
+      - MECA-FISE-3-A1
+      - MECA-FISE-3-A2
+      - MECA-FISE-3-B1
+      - MECA-FISE-3-B2
+      - MECA-FISE-3-C1
+      - MECA-FISE-3-C2
+    SNI-3:
+      - SNI-3-D1
+    IDU-3:
+      - IDU-3-G1
+      - IDU-3-G2
+    IDU-3_SNI-3:
+      - IDU-3-G1
+      - IDU-3-G2
+      - SNI-3-D1
+    SNI-3, IDU-3:
+      - IDU-3-G1
+      - IDU-3-G2
+      - SNI-3-D1
+    MECA-FISE-3-A-TD:
+      - MECA-FISE-3-A1
+      - MECA-FISE-3-A2
+    MECA-FISE-3-B-TD:
+      - MECA-FISE-3-B1
+      - MECA-FISE-3-B2
+    MECA-FISE-3-C-TD:
+      - MECA-FISE-3-C1
+      - MECA-FISE-3-C2
+    SNI-3-D-TD:
+      - SNI-3-D1
+    IDU-3-G-TD:
+      - IDU-3-G1
+      - IDU-3-G2
+    MECA-FISE-3-A1:
+      - MECA-FISE-3-A1
+    MECA-FISE-3-A1-TP:
+      - MECA-FISE-3-A1
+    MECA-FISE-3-A2:
+      - MECA-FISE-3-A2
+    MECA-FISE-3-A2-TP:
+      - MECA-FISE-3-A2
+    MECA-FISE-3-B1:
+      - MECA-FISE-3-B1
+    MECA-FISE-3-B1-TP:
+      - MECA-FISE-3-B1
+    MECA-FISE-3-B2:
+      - MECA-FISE-3-B2
+    MECA-FISE-3-B2-TP:
+      - MECA-FISE-3-B2
+    MECA-FISE-3-C1:
+      - MECA-FISE-3-C1
+    MECA-FISE-3-C1-TP:
+      - MECA-FISE-3-C1
+    MECA-FISE-3-C2:
+      - MECA-FISE-3-C2
+    MECA-FISE-3-C2-TP:
+      - MECA-FISE-3-C2
+    SNI-3-D1:
+      - SNI-3-D1
+    SNI-3-D1-TP:
+      - SNI-3-D1
+    IDU-3-G1:
+      - IDU-3-G1
+    IDU-3-G1-TP:
+      - IDU-3-G1
+    IDU-3-G2:
+      - IDU-3-G2
+    IDU-3-G2-TP:
+      - IDU-3-G2
+  constraints:
+    EPU-3-S6:
+      unavailable:
+        - {
+            # STARTS IN SEPTEMBER
+            "kind": "datetime",
+            "start": "2024-W01-1 00:00",
+            "end": "2024-W36-1 12:00",
+          }
+        - {
+            # TOUSSAINTS HOLLIDAYS
+            "kind": "datetime",
+            "start": "2024-W44-1 00:00",
+            "end": "2024-W44-7 23:00",
+          }
+        - {
+            # CHRISTMAS HOLLIDAYS
+            "kind": "datetime",
+            "start": "2024-W52-1 00:00",
+            "end": "2025-W01-7 23:00",
+          }
+        - {
+            # CHRISTMAS HOLLIDAYS 2: THIS IS A TEST
+            "kind": "datetime",
+            "start": "2024-W52-1 00:00",
+            "end": "2025-W01-7 23:00",
+          }
+    MECA-FISE-3-A-TD:
+      unavailable:
+        - {
+            "kind": "datetime",
+            "start": "2024-W37-1 08:00",
+            "end": "2024-W37-2 14:00",
+          }
+
+courses:
+  MATE001:
+    color: pink
+    activities:
+      # CM
+      CM1:
+        kind: CM
+        duration: 6
+        teachers:
+          pool: [AA]
+          value: 1
+        rooms:
+          pool: *room_MECA-FISE-3
+          value: 1
+        students: "MECA-3"
+        earliest_datetime: "2024-W38-4 08:00"
+        latest_datetime: "2024-W44-7 18:00"
+
+      # TD
+      TD1-A:
+        kind: TD
+        duration: 6
+        teachers:
+          pool: [AA]
+          value: 1
+        rooms:
+          pool: *room_MECA-FISE-3_A_TD
+          value: 1
+        students: "MECA-FISE-3-A-TD"
+      TD1-B:
+        kind: TD
+        duration: 6
+        teachers:
+          pool: [BB]
+          value: 1
+        rooms:
+          pool: *room_MECA-FISE-3_B_TD
+          value: 1
+        students: "MECA-FISE-3-B-TD"
+      TD1-C:
+        kind: TD
+        duration: 6
+        teachers:
+          pool: [AA]
+          value: 1
+        rooms:
+          pool: *room_MECA-FISE-3_C_TD
+          value: 1
+        students: "MECA-FISE-3-C-TD"
+
+    inner_activity_groups:
+      CM1_mater: [CM1]
+      TD1_metal: [TD1-A, TD1-B, TD1-C]
+
+    foreign_activity_groups:
+      MECA653_CM1: [[MECA653, CM1]]
+
+    constraints:
+      - {
+          kind: succession,
+          activities: [TD1_metal],
+          start_after: [CM1_mater],
+          min_offset: *oneweek,
+          max_offset: null,
+        }
+
+teachers:
+  AA:
+    full_name: AAAA ALBERT
+    unavailable:
+      - {
+          # KIDS ON WEDNESDAY
+          "kind": "datetime",
+          "start": "2024-W01-3 08:00",
+          "end": "2024-W01-3 18:00",
+          "repeat": 104,
+          "offset": "1w",
+        }
+      - {
+          # DOES NOT WORK ON MONDAY MORNING
+          "kind": "datetime",
+          "start": "2024-W01-1 08:00",
+          "end": "2024-W01-1 12:00",
+          "repeat": 104,
+          "offset": "1w",
+        }
+      - {
+          "kind": "datetime",
+          "start": "2024-W37-1 08:00",
+          "end": "2024-W37-1 18:00",
+        }
+
+  BB:
+    full_name: BBBB BORIS
+    unavailable:
+      - {
+          # WORKS ONLY IN THE MORNING
+          "kind": "datetime",
+          "start": "2024-W01-1 12:00",
+          "end": "2024-W01-1 18:00",
+          "repeat":104,
+          "offset": "1w",
+        }

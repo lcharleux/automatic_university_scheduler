@@ -12,7 +12,7 @@ from classes import (
     ActivityGroup,
     StartsAfterConstraint,
     ActivityKind,
-    WeekStructure,
+    WeekSlotsAvailabiblity,
     WeekDay,
 )
 import numpy as np
@@ -256,43 +256,42 @@ def create_activities_and_rooms(
     return activities_dic, activities_groups_dic, rooms
 
 
-def create_activity_kinds(session, project, project_data, daily_slots_dic):
-    activity_kinds = {}
-    for kind_label, kind_data in project_data["ACTIVITIES_KINDS"].items():
+def create_activity_kinds(session, project, activity_kinds, daily_slots_dic):
+    out = {}
+    for kind_label, kind_data in activity_kinds.items():
         kind_kwargs = {"session": session, "project": project, "label": kind_label}
         allowed_daily_start_slots = [
             daily_slots_dic[i] for i in kind_data["allowed_start_time_slots"]
         ]
-        activity_kinds[kind_label] = get_or_create(
+        out[kind_label] = get_or_create(
             allowed_daily_start_slots=allowed_daily_start_slots,
             cls=ActivityKind,
             **kind_kwargs,
             commit=True,
         )
-    return activity_kinds
+    return out
 
 
-def create_week_structure(session, project, project_data, daily_slots, week_days):
-    week_structure = {}
-    wdata = project_data["WEEK_STRUCTURE"]
+def create_week_structure(session, project, week_structure, daily_slots, week_days):
+    out = {}
     for (
         weekday,
         ddata,
-    ) in enumerate(wdata):
+    ) in enumerate(week_structure):
         for slot, value in enumerate(ddata):
             daily_slot = daily_slots[slot + 1]
             week_day = week_days[weekday + 1]
             available = value != 0
             # print(week_day.id, daily_slot.id, available, daily_slot)
-            week_structure[(week_day.id, daily_slot.id)] = get_or_create(
+            out[(week_day.id, daily_slot.id)] = get_or_create(
                 session,
-                WeekStructure,
+                WeekSlotsAvailabiblity,
                 week_day_id=week_day.id,
                 daily_slot_id=daily_slot.id,
                 available=available,
                 project=project,
             )
-    return week_structure
+    return out
 
 
 def create_weekdays(session, project):

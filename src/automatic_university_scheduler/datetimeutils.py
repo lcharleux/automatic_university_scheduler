@@ -190,3 +190,10 @@ def datetime_to_slot(
     elif round == "floor":
         return math.floor(slot)
     return slot
+
+
+def slot_to_datetime(slot, origin_datetime, time_slot_duration):
+    """
+    Converts a slot to a datetime.
+    """
+    return origin_datetime + slot * time_slot_duration

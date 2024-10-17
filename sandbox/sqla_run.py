@@ -9,6 +9,8 @@ from classes import (
     StartsAfterConstraint,
     ActivityGroup,
     ActivityKind,
+    absolute_week_duration_deviation,
+    StaticActivity,
 )
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
@@ -17,6 +19,11 @@ import yaml
 from ortools.sat.python import cp_model
 import itertools
 import numpy as np
+from automatic_university_scheduler.datetimeutils import DateTime as DT
+from automatic_university_scheduler.utils import Messages
+from automatic_university_scheduler.scheduling import SolutionPrinter
+from automatic_university_scheduler.datetimeutils import slot_to_datetime
+import time
 
 setup = yaml.safe_load(open("setup.yaml"))
 
@@ -30,6 +37,7 @@ session = Session(engine)
 
 project = session.execute(select(Project)).scalars().first()
 activities = session.execute(select(Activity)).scalars().all()
+static_activities = session.execute(select(StaticActivity)).scalars().all()
 students_groups = session.execute(select(StudentsGroup)).scalars().all()
 atomic_students = session.execute(select(AtomicStudent)).scalars().all()
 rooms = session.execute(select(Room)).scalars().all()
@@ -42,19 +50,24 @@ starts_after_constraints = (
 
 # MODEL CREATION
 model = cp_model.CpModel()
-HORIZON = project.horizon
-TIME_SLOT_DURATION = project.time_slot_duration
+setup = project.setup
+horizon = setup["HORIZON"]
+time_slot_duration = setup["TIME_SLOT_DURATION"]
 
 # Existing activities : TODO
 
 # Create constraints:
-horizon = HORIZON
+# horizon = HORIZON
 teacher_intervals = {t.id: [] for t in teachers}
+teacher_static_intervals = {t.id: [] for t in teachers}
 room_intervals = {r.id: [] for r in rooms}
+room_static_intervals = {r.id: [] for r in rooms}
 atomic_students_intervals = {s.id: [] for s in atomic_students}
+atomic_students_static_intervals = {s.id: [] for s in atomic_students}
 activities_intervals = {}
 activities_starts = {}
 activities_ends = {}
+activities_durations = {}
 
 
 # INTERVALS CREATION
@@ -62,8 +75,8 @@ for activity in activities:
     label = activity.label
     aid = activity.id
     said = str(aid).zfill(4)
-    start = model.NewIntVar(0, HORIZON, f"start_{said}")
-    end = model.NewIntVar(0, HORIZON, f"end_{said}")
+    start = model.NewIntVar(0, horizon, f"start_{said}")
+    end = model.NewIntVar(0, horizon, f"end_{said}")
     duration = activity.duration
     # model.Add(end == start + duration) # overkill ? Enforced by IntevalVar : https://developers.google.com/optimization/reference/python/sat/python/cp_model#newintervalvar
     interval = model.NewIntervalVar(start, duration, end, f"activity_{said}")
@@ -73,6 +86,7 @@ for activity in activities:
     activities_intervals[aid] = interval
     activities_starts[aid] = start
     activities_ends[aid] = end
+    activities_durations[aid] = duration
     # ALTERNATIVES
     items = []
     kind = []
@@ -144,5 +158,107 @@ for akind in activity_kinds:
         said = str(aid).zfill(4)
         start = activities_starts[aid]
         start_m96 = model.NewIntVar(1, horizon, f"start_mod_{tspd}_{said}")
+        model.AddModuloEquality(start_m96, start, 96)
         for fslot in activity_forbidden_slots:
             model.Add(start_m96 != fslot)
+
+# NO OVERLAP
+for teacher, intervals in teacher_intervals.items():
+    if len(intervals) > 1:
+        model.AddNoOverlap(intervals)
+for room, intervals in room_intervals.items():
+    if len(intervals) > 1:
+        model.AddNoOverlap(intervals)
+for student, intervals in atomic_students_intervals.items():
+    if len(intervals) > 1:
+        model.AddNoOverlap(intervals)
+
+# UNAVAILABILITY
+for static_activity in static_activities:
+    start = static_activity.start
+    end = static_activity.end
+    duration = static_activity.duration
+    aid = static_activity.id
+    said = str(aid).zfill(4)
+    interval = model.NewIntervalVar(start, duration, end, f"static_activity_{aid}")
+    if static_activity.students != None:
+        for atomic_student in static_activity.students.students:
+            atomic_students_static_intervals[atomic_student.id].append(interval)
+    for teacher in static_activity.allocated_teachers:
+        teacher_static_intervals[teacher.id].append(interval)
+    for room in static_activity.allocated_rooms:
+        room_static_intervals[room.id].append(interval)
+
+for teacher, static_intervals in teacher_static_intervals.items():
+    if len(static_intervals) > 1:
+        for static_interval in static_intervals:
+            for interval in teacher_intervals[teacher]:
+                model.AddNoOverlap([static_interval, interval])
+
+for room, static_intervals in room_static_intervals.items():
+    if len(static_intervals) > 1:
+        for static_interval in static_intervals:
+            for interval in room_intervals[room]:
+                model.AddNoOverlap([static_interval, interval])
+
+for student, static_intervals in atomic_students_static_intervals.items():
+    if len(static_intervals) > 1:
+        for static_interval in static_intervals:
+            for interval in atomic_students_intervals[student]:
+                model.AddNoOverlap([static_interval, interval])
+
+# for room, static_interval in room_static_intervals.items():
+#     if len(intervals) > 1:
+#         for interval in room_intervals[room]:
+#             model.AddNoOverlap([static_interval, interval])
+
+# for student, static_interval in atomic_students_static_intervals.items():
+#     if len(intervals) > 1:
+#         for interval in atomic_students_intervals[student]:
+#             model.AddNoOverlap([static_interval, interval])
+
+# COST FUNCTION
+
+
+value = absolute_week_duration_deviation(
+    project, model, activities_starts, activities_durations
+)
+
+model.Minimize(value)
+# CHECK MODEL INTEGRITY
+print("CHECK MODEL INTEGRITY")
+out = model.Validate()
+if out == "":
+    print(f"  => Model is  valid: {Messages.SUCCESS}")
+else:
+    print(f"Model is not valid: {Messages.ERROR}")
+    print(out)
+
+
+# Solve model
+print("SOLVING ...")
+solver = cp_model.CpSolver()
+solver.parameters.max_time_in_seconds = 120  # 54000 = 15h
+solver.parameters.num_search_workers = 16
+# solver.parameters.log_search_progress = True
+
+
+solution_printer = SolutionPrinter(limit=25)  # 30 is OK
+t0 = time.time()
+status = solver.Solve(model, solution_printer)
+solver_final_status = solver.StatusName()
+print(f"SOLVER STATUS: {solver_final_status}")
+t1 = time.time()
+print(solver.ResponseStats())
+print(f"Elapsed time: {t1-t0:.2f} s")
+
+setup = project.setup
+if not solver_final_status == "INFEASIBLE":
+    activities_dic = {a.id: a for a in activities}
+    for aid, start in activities_starts.items():
+        start_slot = solver.Value(start)
+        start_datetime = slot_to_datetime(
+            start_slot, setup["ORIGIN_DATETIME"], setup["TIME_SLOT_DURATION"]
+        )
+        alabel = activities_dic[aid].label
+        print(f"Activity {aid} ({alabel}) starts at {start_slot} = {start_datetime}")

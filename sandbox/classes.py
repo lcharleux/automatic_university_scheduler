@@ -20,8 +20,9 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 import datetime
 from automatic_university_scheduler.datetimeutils import DateTime as DT
-from automatic_university_scheduler.datetimeutils import TimeDelta
+from automatic_university_scheduler.datetimeutils import TimeDelta, datetime_to_slot
 import math
+import numpy as np
 
 
 class Base(DeclarativeBase):
@@ -131,8 +132,8 @@ class Project(Base):
     week_days: Mapped[List["WeekDay"]] = relationship(
         "WeekDay", back_populates="project"
     )
-    week_structure: Mapped[List["WeekStructure"]] = relationship(
-        "WeekStructure", back_populates="project"
+    week_slots_availability: Mapped[List["WeekSlotsAvailabiblity"]] = relationship(
+        "WeekSlotsAvailabiblity", back_populates="project"
     )
 
     __table_args__ = (UniqueConstraint(*_unique_columns, name="_unique_project"),)
@@ -160,6 +161,47 @@ class Project(Base):
     @property
     def time_slots_per_week(self):
         return self.time_slots_per_day * 7
+
+    @property
+    def week_structure(self):
+        spw = self.time_slots_per_week
+        spd = self.time_slots_per_day
+        ws = np.zeros((spd, 7), dtype=int)
+        for slot in self.week_slots_availability:
+            if slot.available:
+                ws[slot.daily_slot_id - 1, slot.week_day_id - 1] = 1
+        return ws
+
+    @property
+    def setup(self):
+        """
+        Load the setup file.
+        """
+
+        origin_datetime = self.origin
+        time_slot_duration = self.time_slot_duration
+        horizon_datetime = self.origin + self.horizon * time_slot_duration
+        origin_monday = DT.fromisocalendar(
+            origin_datetime.isocalendar().year, origin_datetime.isocalendar().week, 1
+        )
+        horizon_monday = DT.fromisocalendar(
+            horizon_datetime.isocalendar().year, horizon_datetime.isocalendar().week, 1
+        )
+        out = {}
+        out["WEEK_STRUCTURE"] = self.week_structure
+        ONE_WEEK = TimeDelta.from_str("1w")
+        ONE_DAY = TimeDelta.from_str("1d")
+        out["DAYS_PER_WEEK"] = 7
+        out["TIME_SLOTS_PER_DAY"] = ONE_DAY // time_slot_duration
+        out["ORIGIN_DATETIME"] = origin_datetime
+        out["HORIZON_DATETIME"] = horizon_datetime
+        out["HORIZON_MONDAY"] = horizon_monday
+        out["ORIGIN_MONDAY"] = origin_monday
+        out["MAX_WEEKS"] = (horizon_monday - origin_monday) // ONE_WEEK + 1
+        out["TIME_SLOT_DURATION"] = time_slot_duration
+        out["TIME_SLOTS_PER_WEEK"] = out["DAYS_PER_WEEK"] * out["TIME_SLOTS_PER_DAY"]
+        out["HORIZON"] = out["MAX_WEEKS"] * out["TIME_SLOTS_PER_WEEK"]
+        return out
 
 
 class AtomicStudent(Base):
@@ -253,6 +295,10 @@ class StaticActivity(Base):
     def __repr__(self) -> str:
         name = self.__class__.__name__
         return f"<{name}: id={self.id}, name={self.label}, kind={self.kind}, start={self.start}, duration={self.duration}>"
+
+    @property
+    def end(self):
+        return self.start + self.duration
 
 
 class Activity(Base):
@@ -387,7 +433,7 @@ class DailySlot(Base):
     label: Mapped[str] = mapped_column(String(30), unique=True)
     project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
     project: Mapped["Project"] = relationship(back_populates="daily_slots")
-    week_structure: Mapped[List["WeekStructure"]] = relationship(
+    week_slots_availability: Mapped[List["WeekSlotsAvailabiblity"]] = relationship(
         back_populates="daily_slot"
     )
 
@@ -409,7 +455,7 @@ class WeekDay(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     label: Mapped[str] = mapped_column(String(30), unique=True)
-    week_structure: Mapped[List["WeekStructure"]] = relationship(
+    week_slots_availability: Mapped[List["WeekSlotsAvailabiblity"]] = relationship(
         back_populates="week_day"
     )
 
@@ -418,17 +464,19 @@ class WeekDay(Base):
         return f"<{name}: id={self.id}, label={self.label}>"
 
 
-class WeekStructure(Base):
+class WeekSlotsAvailabiblity(Base):
     __tablename__ = "week_structure"
     _unique_columns = ["project_id", "week_day_id", "daily_slot_id"]
 
     id: Mapped[int] = mapped_column(primary_key=True)
     project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
-    project: Mapped["Project"] = relationship(back_populates="week_structure")
+    project: Mapped["Project"] = relationship(back_populates="week_slots_availability")
     week_day_id: Mapped[int] = mapped_column(ForeignKey("week_day.id"))
-    week_day: Mapped["WeekDay"] = relationship(back_populates="week_structure")
+    week_day: Mapped["WeekDay"] = relationship(back_populates="week_slots_availability")
     daily_slot_id: Mapped[int] = mapped_column(ForeignKey("daily_slot.id"))
-    daily_slot: Mapped["DailySlot"] = relationship(back_populates="week_structure")
+    daily_slot: Mapped["DailySlot"] = relationship(
+        back_populates="week_slots_availability"
+    )
     available: Mapped[bool] = mapped_column(Boolean, nullable=False)
 
     __table_args__ = (
@@ -438,7 +486,7 @@ class WeekStructure(Base):
     def __repr__(self) -> str:
         name = self.__class__.__name__
         wd = self.week_day.label
-        ds = self.daily_slot.label
+        ds = self.daily_slot.id
         return f"<{name}: id={self.id}, week_day={wd}, daily_slot={ds}, available={self.available}>"
 
 
@@ -501,3 +549,129 @@ class StartsAfterConstraint(Base):
         from_label = self.from_activity_group.label
         to_label = self.to_activity_group.label
         return f"<{name}: id={self.id}, label={self.label}, min_offset={self.min_offset}, max_offset={self.max_offset}, from={from_label}, to={to_label}>"
+
+
+def absolute_week_duration_deviation(
+    project, model, activities_starts, activities_durations
+):
+    """ """
+    setup = project.setup
+    max_weeks = setup["MAX_WEEKS"]
+    time_slots_per_week = setup["TIME_SLOTS_PER_WEEK"]
+    horizon = setup["HORIZON"]
+    students_groups_ids = [g.id for g in project.atomic_students]
+    week_duration = {gid: [[] for i in range(max_weeks)] for gid in students_groups_ids}
+    total_activities_duration = {gid: 0 for gid in students_groups_ids}
+    spw = project.time_slots_per_week
+    spd = project.time_slots_per_day
+    week_structure = project.week_structure
+    for aid, start in activities_starts.items():
+        week = model.NewIntVar(0, max_weeks, "makespan")
+        model.AddDivisionEquality(week, start, time_slots_per_week)
+        duration = activities_durations[aid]
+        for i in range(max_weeks):
+            is_week = model.NewBoolVar("is_week")
+            model.Add(week == i).OnlyEnforceIf(is_week)
+            model.Add(week != i).OnlyEnforceIf(is_week.Not())
+            duration_on_week = model.NewIntVar(
+                0, time_slots_per_week, "duration_on_week"
+            )
+            model.Add(duration_on_week == duration).OnlyEnforceIf(is_week)
+            model.Add(duration_on_week == 0).OnlyEnforceIf(is_week.Not())
+            for gid in students_groups_ids:
+                week_duration[gid][i].append(duration_on_week)
+    week_duration_curated = {}
+    for group, wd in week_duration.items():
+        l = sum([len(d) for d in wd])
+        if l != 0:
+            week_duration_curated[group] = wd
+
+    week_duration_sums = []
+    week_duration_residuals = []
+    for group, wd in week_duration_curated.items():
+        total_duration_per_group = 0
+        for nw, w in enumerate(wd):
+            if len(w) != 0:
+                week_duration_sums.append(sum(w))
+                total_duration_per_group += sum(w)
+            else:
+                week_duration_sums.append(0)
+        mean_week_duration = model.NewIntVar(
+            0, time_slots_per_week, f"mean_week_duration_{group}"
+        )
+        model.AddDivisionEquality(
+            mean_week_duration, total_activities_duration[group], len(wd)
+        )
+        for w in wd:
+            week_duration = sum(w)
+            abs_week_residual = model.NewIntVar(
+                0, time_slots_per_week, "mean_week_duration"
+            )
+            positive_residual = model.NewBoolVar("mean_week_duration")
+            model.Add(week_duration - mean_week_duration >= 0).OnlyEnforceIf(
+                positive_residual
+            )
+            model.Add(week_duration - mean_week_duration < 0).OnlyEnforceIf(
+                positive_residual.Not()
+            )
+            model.Add(
+                abs_week_residual == week_duration - mean_week_duration
+            ).OnlyEnforceIf(positive_residual)
+            model.Add(
+                abs_week_residual == mean_week_duration - week_duration
+            ).OnlyEnforceIf(positive_residual.Not())
+            week_duration_residuals.append(abs_week_residual)
+    value = model.NewIntVar(0, horizon, "makespan")
+    model.Add(value == sum(week_duration_residuals))
+    return value
+
+
+def load_setup(data):
+    """
+    Load the setup file.
+    """
+    origin_datetime = DT.from_str(data["origin_datetime"])
+    horizon_datetime = DT.from_str(data["horizon_datetime"])
+    origin_monday = DT.fromisocalendar(
+        origin_datetime.isocalendar().year, origin_datetime.isocalendar().week, 1
+    )
+    horizon_monday = DT.fromisocalendar(
+        horizon_datetime.isocalendar().year, horizon_datetime.isocalendar().week, 1
+    )
+    out = {}
+    out["WEEK_STRUCTURE"] = WEEK_STRUCTURE = read_week_structure(data["week_structure"])
+    ONE_WEEK = TimeDelta.from_str("1w")
+    ONE_DAY = TimeDelta.from_str("1d")
+    out["DAYS_PER_WEEK"], out["TIME_SLOTS_PER_DAY"] = out["WEEK_STRUCTURE"].shape
+    out["ORIGIN_DATETIME"] = origin_datetime
+    out["HORIZON_DATETIME"] = horizon_datetime
+    out["HORIZON_MONDAY"] = horizon_monday
+    out["ORIGIN_MONDAY"] = origin_monday
+    out["MAX_WEEKS"] = (horizon_monday - origin_monday) // ONE_WEEK + 1
+    out["TIME_SLOT_DURATION"] = ONE_DAY / out["TIME_SLOTS_PER_DAY"]
+    out["TIME_SLOTS_PER_WEEK"] = out["DAYS_PER_WEEK"] * out["TIME_SLOTS_PER_DAY"]
+    out["HORIZON"] = datetime_to_slot(
+        horizon_datetime, origin_datetime, out["TIME_SLOT_DURATION"], round="floor"
+    )
+    out["ACTIVITIES_KINDS"] = data["activity_kinds"]
+    return out
+
+
+def read_week_structure(data):
+    """
+    Reads the week structure from a list of strings, typically obtained from a YAML file.
+    Each string in the list represents a day and should contain a sequence of '0' and '1' characters
+    representing unavailable and available time slots, respectively. Spaces in the strings are ignored.
+
+    Parameters:
+    data (List[str]): The week structure data. Each string in the list represents a day and should contain
+                      a sequence of '0' and '1' characters representing unavailable and available time slots,
+                      respectively.
+
+    Returns:
+    np.array: A 2D numpy array of integers representing the week structure. Each row corresponds to a day
+              and each column corresponds to a time slot. A '1' indicates that the corresponding time slot
+              on the corresponding day is available, and a '0' indicates that it is not.
+    """
+    WEEK_STRUCTURE = np.array([list(day.replace(" ", "")) for day in data]).astype(int)
+    return WEEK_STRUCTURE
