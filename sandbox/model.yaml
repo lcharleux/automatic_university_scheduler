@@ -1,7 +1,7 @@
 # SETUP
 setup:
   origin_datetime: "2024-W36-1 00:00"
-  horizon_datetime: "2024-W37-7 23:59"
+  horizon_datetime: "2024-W40-7 23:59"
   week_structure: [
       #  0h   1h   2h   3h   4h   5h   6h   7h   8h   9h   10h  11h  12h  13h  14h  15h  16h  17h  18h  19h  20h  21h  22h  23h
       "0000 0000 0000 0000 0000 0000 0000 0000 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 0000 0000 0000 0000 0000", # MONDAY
@@ -57,13 +57,6 @@ _internal_variables:
   durations:
     - &zero 0
     - &oneday 96
-    - &halfday 48
-    - &twodays 192
-    - &threedays 288
-    - &fourdays 384
-    - &fivedays 480
-    - &oneweek 672
-    - &twoweeks 1344
   room_pools:
     - &room_IDU-3-G-TD ["A-POLY-C109"]
     - &room_IDU-3-G1 ["A-POLY-C109"]
@@ -240,6 +233,19 @@ courses:
       # CM
       CM1:
         kind: CM
+        duration: "1h-30m"
+        teachers:
+          pool: [AA]
+          value: 1
+        rooms:
+          pool: *room_MECA-FISE-3
+          value: 1
+        students: "MECA-3"
+        earliest_start: "2024-W37-3 08:00"
+        latest_start: "2024-W37-5 18:00"
+
+      CM2:
+        kind: CM
         duration: 6
         teachers:
           pool: [AA]
@@ -248,8 +254,19 @@ courses:
           pool: *room_MECA-FISE-3
           value: 1
         students: "MECA-3"
-        earliest_datetime: "2024-W38-4 08:00"
-        latest_datetime: "2024-W44-7 18:00"
+
+      CM3:
+        kind: CM
+        duration: 6
+        teachers:
+          pool: [AA]
+          value: 1
+        rooms:
+          pool: *room_MECA-FISE-3
+          value: 1
+        students: "MECA-3"
+
+
 
       # TD
       TD1-A:
@@ -283,9 +300,75 @@ courses:
           value: 1
         students: "MECA-FISE-3-C-TD"
 
+      TD2-A:
+        kind: TD
+        duration: 6
+        teachers:
+          pool: [AA]
+          value: 1
+        rooms:
+          pool: *room_MECA-FISE-3_A_TD
+          value: 1
+        students: "MECA-FISE-3-A-TD"
+      TD2-B:
+        kind: TD
+        duration: 6
+        teachers:
+          pool: [BB]
+          value: 1
+        rooms:
+          pool: *room_MECA-FISE-3_B_TD
+          value: 1
+        students: "MECA-FISE-3-B-TD"
+      TD2-C:
+        kind: TD
+        duration: 6
+        teachers:
+          pool: [AA]
+          value: 1
+        rooms:
+          pool: *room_MECA-FISE-3_C_TD
+          value: 1
+        students: "MECA-FISE-3-C-TD"
+      TD3-A:
+        kind: TD
+        duration: 6
+        teachers:
+          pool: [AA]
+          value: 1
+        rooms:
+          pool: *room_MECA-FISE-3_A_TD
+          value: 1
+        students: "MECA-FISE-3-A-TD"
+      TD3-B:
+        kind: TD
+        duration: 6
+        teachers:
+          pool: [BB]
+          value: 1
+        rooms:
+          pool: *room_MECA-FISE-3_B_TD
+          value: 1
+        students: "MECA-FISE-3-B-TD"
+      TD3-C:
+        kind: TD
+        duration: 6
+        teachers:
+          pool: [AA]
+          value: 1
+        rooms:
+          pool: *room_MECA-FISE-3_C_TD
+          value: 1
+        students: "MECA-FISE-3-C-TD"
+
+
     inner_activity_groups:
-      CM1_mater: [CM1]
-      TD1_metal: [TD1-A, TD1-B, TD1-C]
+      CM1: [CM1]
+      CM2: [CM2]
+      CM3: [CM3]
+      TD1: [TD1-A, TD1-B, TD1-C]
+      TD2: [TD2-A, TD2-B, TD2-C]
+      TD3: [TD3-A, TD3-B, TD3-C]
 
     foreign_activity_groups:
       MECA653_CM1: [[MECA653, CM1]]
@@ -293,11 +376,59 @@ courses:
     constraints:
       - {
           kind: succession,
-          activities: [TD1_metal],
-          start_after: [CM1_mater],
-          min_offset: *oneweek,
+          activities: [TD1],
+          start_after: [CM1],
+          min_offset: "1d",
+        }
+      - {
+          kind: succession,
+          activities: [TD2],
+          start_after: [CM2],
+          min_offset: "1d",
           max_offset: null,
         }
+      - {
+          kind: succession,
+          activities: [TD3],
+          start_after: [CM3],
+          min_offset: "1d",
+          max_offset: null,
+        }
+      - {
+          kind: succession,
+          activities: [CM2],
+          start_after: [CM1],
+          min_offset: "5d",
+          max_offset: null,
+        }
+      - {
+          kind: succession,
+          activities: [CM3],
+          start_after: [CM2],
+          min_offset: "5d",
+          max_offset: null,
+        }
+      - {
+          kind: succession,
+          activities: [CM2],
+          start_after: [TD1],
+          min_offset: "5d",
+          max_offset: null,
+        }
+      - {
+          kind: succession,
+          activities: [CM3],
+          start_after: [TD2],
+          min_offset: "5d",
+          max_offset: null,
+        }
+      # - { # THIS IS A CLONE OF THE PREVIOUS CONSTRAINT
+      #     kind: succession,
+      #     activities: [CM3],
+      #     start_after: [TD2],
+      #     min_offset: *oneweek,
+      #     max_offset: null,
+      #   }
 
 teachers:
   AA:

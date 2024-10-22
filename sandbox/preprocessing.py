@@ -14,6 +14,7 @@ from classes import (
     ActivityKind,
     WeekSlotsAvailabiblity,
     WeekDay,
+    Course,
 )
 import numpy as np
 import itertools
@@ -60,9 +61,10 @@ def process_constraint_static_activity(
     return out
 
 
-def create_students(
-    session, project, students_data, origin_datetime, time_slot_duration, horizon
-):
+def create_students(session, project, students_data):
+    origin_datetime = project.origin_datetime
+    time_slot_duration = project.time_slot_duration
+    horizon = project.horizon
     atomic_students = {}
     students_groups = {}
     atomic_students_labels = set()
@@ -118,10 +120,11 @@ def create_students(
     return atomic_students, students_groups
 
 
-def create_daily_slots(session, project, time_slot_duration):
+def create_daily_slots(session, project):
     """
     Create daily slots for a given project and time slot duration.
     """
+    time_slot_duration = project.time_slot_duration
     daily_slots_dic = {}
     Ndslots = math.floor(datetime.timedelta(days=1) / time_slot_duration)
     slot = time_slot_duration * 0
@@ -135,9 +138,10 @@ def create_daily_slots(session, project, time_slot_duration):
     return daily_slots_dic
 
 
-def create_teachers(
-    session, project, teachers_data, origin_datetime, time_slot_duration, horizon
-):
+def create_teachers(session, project, teachers_data):
+    time_slot_duration = project.time_slot_duration
+    horizon = project.horizon
+    origin_datetime = project.origin_datetime
     teachers = {}
     teachers_unavailable_static_activities = {}
     for label, teacher_data in teachers_data.items():
@@ -173,12 +177,15 @@ def create_activities_and_rooms(
     session, project, courses_data, teachers, students_groups, activity_kinds
 ):
     """ """
+    duration_to_slots = project.duration_to_slots
+    datetime_to_slot = project.datetime_to_slot
     rooms = {}
     activities_dic = {}
     activities_groups_dic = {}
+    starts_after_constraint_dic = {}
     rooms_labels = set()
 
-    for course, course_data in courses_data.items():
+    for course_label, course_data in courses_data.items():
         activities = course_data["activities"]
         for activity, activity_data in activities.items():
             room_pool = activity_data["rooms"]["pool"]
@@ -191,15 +198,18 @@ def create_activities_and_rooms(
         )
 
     for course_label, course_data in courses_data.items():
+        course = get_or_create(
+            session, Course, label=course_label, project=project, commit=True
+        )
         activities = course_data["activities"]
         for activity_label, activity_data in activities.items():
             activity_args = {
                 "label": activity_label,
-                "course": course_label,
+                "course": course,
                 "project": project,
             }
             activity_args["kind"] = activity_kinds[activity_data["kind"]]
-            activity_args["duration"] = activity_data["duration"]
+            activity_args["duration"] = duration_to_slots(activity_data["duration"])
             activity_args["room_pool"] = [
                 rooms[l] for l in activity_data["rooms"]["pool"]
             ]
@@ -208,17 +218,26 @@ def create_activities_and_rooms(
             ]
             activity_args["students"] = students_groups[activity_data["students"]]
             # new_activity = Activity(**activity_args)
+            if "earliest_start" in activity_data.keys():
+                activity_args["earliest_start_slot"] = datetime_to_slot(
+                    activity_data["earliest_start"], round="ceil"
+                )
+            if "latest_start" in activity_data.keys():
+                activity_args["latest_start_slot"] = datetime_to_slot(
+                    activity_data["latest_start"], round="floor"
+                )
             new_activity = get_or_create(
                 session, Activity, **activity_args, commit=True
             )
             activities_dic[(course_label, activity_label)] = new_activity
         for group_label, group_data in course_data["inner_activity_groups"].items():
-            gra = [activities_dic[(course, l)] for l in group_data]
+
+            gra = [activities_dic[(course_label, l)] for l in group_data]
             activity_group_kwargs = {
                 "label": group_label,
                 "activities": gra,
                 "project": project,
-                "course": course_label,
+                "course": course,
             }
             new_activity_group = get_or_create(
                 session, ActivityGroup, **activity_group_kwargs, commit=True
@@ -229,7 +248,10 @@ def create_activities_and_rooms(
                 from_act_groups_labels = constraints_data["start_after"]
                 to_act_groups_labels = constraints_data["activities"]
                 min_offset = constraints_data["min_offset"]
-                max_offset = constraints_data["max_offset"]
+                if "max_offset" in constraints_data.keys():
+                    max_offset = constraints_data["max_offset"]
+                else:
+                    max_offset = None
                 for from_act_group_label, to_act_group_label in itertools.product(
                     from_act_groups_labels, to_act_groups_labels
                 ):
@@ -242,18 +264,20 @@ def create_activities_and_rooms(
                     starts_after_constraint_kwargs = {
                         "label": "starts_after",
                         "project": project,
-                        "min_offset": min_offset,
-                        "max_offset": max_offset,
+                        "min_offset": duration_to_slots(min_offset),
+                        "max_offset": duration_to_slots(max_offset),
                         "from_activity_group": from_act_group,
                         "to_activity_group": to_act_group,
                     }
-                    get_or_create(
+
+                    cons = get_or_create(
                         session,
                         StartsAfterConstraint,
                         **starts_after_constraint_kwargs,
                         commit=True,
                     )
-    return activities_dic, activities_groups_dic, rooms
+                    starts_after_constraint_dic[cons.id] = cons
+    return activities_dic, activities_groups_dic, rooms, starts_after_constraint_dic
 
 
 def create_activity_kinds(session, project, activity_kinds, daily_slots_dic):
@@ -282,7 +306,6 @@ def create_week_structure(session, project, week_structure, daily_slots, week_da
             daily_slot = daily_slots[slot + 1]
             week_day = week_days[weekday + 1]
             available = value != 0
-            # print(week_day.id, daily_slot.id, available, daily_slot)
             out[(week_day.id, daily_slot.id)] = get_or_create(
                 session,
                 WeekSlotsAvailabiblity,

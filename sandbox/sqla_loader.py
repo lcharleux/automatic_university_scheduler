@@ -40,26 +40,17 @@ from db_utils import get_or_create
 
 model = yaml.safe_load(open("model.yaml"))
 db_info = yaml.safe_load(open("setup.yaml"))
-os.remove("./data.db")
+try:
+    os.remove("./data.db")
+    print("Database removed")
+except:
+    print("Database not found and then not removed.")
 
+print("Creating database")
 engine = create_engine(db_info["engine"], echo=False)
 Base.metadata.create_all(engine)
 
-# project_data_folder = setup["project_data_folder"]
-# courses_data_folder = setup["courses_data_folder"]
-# courses_data_files = [f for f in os.listdir(courses_data_folder) if f.endswith(".yaml")]
-
-
 session = Session(engine)
-
-
-# project_data = load_setup(os.path.join(project_data_folder, "setup.yaml"))
-# students_data = yaml.safe_load(
-#     open(os.path.join(project_data_folder, "student_data.yaml"))
-# )
-# teachers_data = yaml.safe_load(
-#     open(os.path.join(project_data_folder, "teacher_data.yaml"))
-# )
 
 setup = load_setup(model["setup"])
 
@@ -83,7 +74,7 @@ project = get_or_create(
 
 week_days = create_weekdays(session, project)
 # DAILY SLOTS
-daily_slots = create_daily_slots(session, project, TIME_SLOT_DURATION)
+daily_slots = create_daily_slots(session, project)
 
 # WEEK STRUCTURE
 week_structure = create_week_structure(
@@ -97,35 +88,22 @@ activity_kinds = create_activity_kinds(
 
 
 # STUDENTS
-print("Creating students:")
-atomic_students, students_groups = create_students(
-    session,
-    project,
-    model["students"],
-    origin_datetime=ORIGIN_DATETIME,
-    time_slot_duration=TIME_SLOT_DURATION,
-    horizon=HORIZON,
-)
-print("\tStudents groups:\n", *[f"\t\t{s}\n" for s in students_groups.keys()])
-print("\tAtomic students:\n", *[f"\t\t{s}\n" for s in atomic_students.keys()])
+print("Creating students")
+atomic_students, students_groups = create_students(session, project, model["students"])
+
 
 # TEACHERS
 teachers, teachers_unavailable_static_activities = create_teachers(
-    session,
-    project,
-    model["teachers"],
-    origin_datetime=ORIGIN_DATETIME,
-    time_slot_duration=TIME_SLOT_DURATION,
-    horizon=HORIZON,
+    session, project, model["teachers"]
 )
 
-
-# courses_data = model["courses"]
-# for file in courses_data_files:
-#     print("Loading data from", file)
-#     courses_data.update(yaml.safe_load(open(os.path.join(courses_data_folder, file))))
-
-activities_dic, activities_groups_dic, rooms = create_activities_and_rooms(
+# ACTIVITIES
+(
+    activities_dic,
+    activities_groups_dic,
+    rooms,
+    starts_after_constraints,
+) = create_activities_and_rooms(
     session,
     project,
     model["courses"],

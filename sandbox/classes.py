@@ -117,7 +117,7 @@ class Project(Base):
     atomic_students: Mapped[List["AtomicStudent"]] = relationship(
         "AtomicStudent", back_populates="project"
     )
-    activitiy_groups: Mapped[List["ActivityGroup"]] = relationship(
+    activity_groups: Mapped[List["ActivityGroup"]] = relationship(
         "ActivityGroup", back_populates="project"
     )
     starts_after_constraints: Mapped[List["StartsAfterConstraint"]] = relationship(
@@ -135,6 +135,7 @@ class Project(Base):
     week_slots_availability: Mapped[List["WeekSlotsAvailabiblity"]] = relationship(
         "WeekSlotsAvailabiblity", back_populates="project"
     )
+    courses: Mapped[List["Course"]] = relationship("Course", back_populates="project")
 
     __table_args__ = (UniqueConstraint(*_unique_columns, name="_unique_project"),)
 
@@ -202,6 +203,35 @@ class Project(Base):
         out["TIME_SLOTS_PER_WEEK"] = out["DAYS_PER_WEEK"] * out["TIME_SLOTS_PER_DAY"]
         out["HORIZON"] = out["MAX_WEEKS"] * out["TIME_SLOTS_PER_WEEK"]
         return out
+
+    def duration_to_slots(self, duration):
+        if type(duration) == int:
+            return duration
+        elif type(duration) == str:
+            return TimeDelta.from_str(duration).to_slots(
+                slot_duration=self.time_slot_duration
+            )
+        elif duration == None:
+            return None
+        else:
+            raise ValueError("Duration must be either an integer or a string")
+
+    def slots_to_duration(self, slots):
+        return TimeDelta(seconds=slots * self.time_slot_duration_seconds)
+
+    def slots_to_datetime(self, slots):
+        return DT.from_datetime(slots * self.time_slot_duration + self.origin_datetime)
+
+    def datetime_to_slot(self, dt, round="floor"):
+        if type(dt) == str:
+            dt = DT.from_str(dt)
+        slot = (dt - self.origin_datetime).to_slots(
+            slot_duration=self.time_slot_duration
+        )
+        if round == "ceil":
+            return math.ceil(slot)
+        elif round == "floor":
+            return math.floor(slot)
 
 
 class AtomicStudent(Base):
@@ -300,16 +330,27 @@ class StaticActivity(Base):
     def end(self):
         return self.start + self.duration
 
+    @property
+    def start_datetime(self):
+        return self.project.slots_to_datetime(self.start)
+
+    @property
+    def end_datetime(self):
+        return self.project.slots_to_datetime(self.end)
+
 
 class Activity(Base):
     __tablename__ = "activity"
-    _unique_columns = ["course", "label", "project_id"]
+    _unique_columns = ["label", "project_id", "course_id"]
 
     id: Mapped[int] = mapped_column(primary_key=True)
     label: Mapped[str] = mapped_column(String(30))
     start: Mapped[int] = mapped_column(Integer, nullable=True)
     duration: Mapped[int] = mapped_column(Integer, nullable=False)
-    course: Mapped[str] = mapped_column(String(30), nullable=False)
+    course_id: Mapped[int] = mapped_column(ForeignKey("course.id"), nullable=False)
+    course: Mapped["Course"] = relationship("Course", back_populates="activities")
+    earliest_start_slot: Mapped[int] = mapped_column(Integer, nullable=True)
+    latest_start_slot: Mapped[int] = mapped_column(Integer, nullable=True)
     kind_id: Mapped[int] = mapped_column(ForeignKey("activity_kind.id"))
     kind: Mapped["ActivityKind"] = relationship("ActivityKind")
     students_id: Mapped[int] = mapped_column(ForeignKey("students_group.id"))
@@ -346,7 +387,53 @@ class Activity(Base):
 
     def __repr__(self) -> str:
         name = self.__class__.__name__
-        return f"<{name}: id={self.id}, label={self.label}, kind={self.kind}, course={self.course}, start={self.start}, duration={self.duration}>"
+        return f"<{name}: id={self.id}, label={self.label}, kind={self.kind.label}, course={self.course.label}, start={self.start}, duration={self.duration}>"
+
+    @property
+    def earliest_start(self):
+        slot = self.earliest_start_slot
+        if slot == None:
+            return None
+        return self.project.slots_to_datetime(slot)
+
+    @property
+    def latest_start(self):
+        slot = self.latest_start_slot
+        if slot == None:
+            return None
+        return self.project.slots_to_datetime(slot)
+
+    @property
+    def end(self):
+        return self.start + self.duration
+
+    @property
+    def start_datetime(self):
+        return self.project.slots_to_datetime(self.start)
+
+    @property
+    def end_datetime(self):
+        return self.project.slots_to_datetime(self.end)
+
+
+class Course(Base):
+    __tablename__ = "course"
+    _unique_columns = ["label"]
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    label: Mapped[str] = mapped_column(String(30), unique=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
+    project: Mapped["Project"] = relationship(back_populates="courses")
+    activities: Mapped[List["Activity"]] = relationship(
+        "Activity", back_populates="course"
+    )
+    activity_groups: Mapped[List["ActivityGroup"]] = relationship(
+        "ActivityGroup", back_populates="course"
+    )
+
+    def __repr__(self) -> str:
+        name = self.__class__.__name__
+        return f"<{name}: id={self.id}, label={self.label}>"
 
 
 class ActivityGroup(Base):
@@ -355,9 +442,10 @@ class ActivityGroup(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     label: Mapped[str] = mapped_column(String(30), unique=True)
-    course: Mapped[str] = mapped_column(String(30), nullable=False)
+    course_id: Mapped[int] = mapped_column(ForeignKey("course.id"), nullable=False)
+    course: Mapped["Course"] = relationship(back_populates="activity_groups")
     project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
-    project: Mapped["Project"] = relationship(back_populates="activitiy_groups")
+    project: Mapped["Project"] = relationship(back_populates="activity_groups")
 
     activities: Mapped[List["Activity"]] = relationship(
         secondary=activity_groups_association_table,
@@ -524,8 +612,10 @@ class StartsAfterConstraint(Base):
         "from_activity_group_id",
         "to_activity_group_id",
         "min_offset",
-        "max_offset",
     ]
+    __table_args__ = (
+        UniqueConstraint(*_unique_columns, name="_unique_starts_after_constraints"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     label: Mapped[str] = mapped_column(String(30), nullable=True)

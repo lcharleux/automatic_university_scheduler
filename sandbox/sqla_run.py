@@ -24,6 +24,7 @@ from automatic_university_scheduler.utils import Messages
 from automatic_university_scheduler.scheduling import SolutionPrinter
 from automatic_university_scheduler.datetimeutils import slot_to_datetime
 import time
+import pandas as pd
 
 setup = yaml.safe_load(open("setup.yaml"))
 
@@ -70,6 +71,29 @@ activities_ends = {}
 activities_durations = {}
 
 
+# # STATIC ACTIVITIES
+# path = "filtered_data.csv"
+# existing_activities_dir = "../existing_activities/extractions/"
+# extracted_data_dir = "planification/outputs/extracted_data/"
+# setup_path = "setup.yaml"
+# tracked_ressources_path = "planification/preprocessing/tracked_ressources.yaml"
+# student_data_path = "student_data.yaml"
+
+# if path.endswith(".xlsx"):
+#     raw_data = pd.read_excel(f"{existing_activities_dir}{path}", header=0)
+# elif path.endswith(".csv"):
+#     raw_data = pd.read_csv(f"{existing_activities_dir}{path}", header=0)
+# else:
+#     raise ValueError("Invalid file format")
+# create_directory(extracted_data_dir)
+# setup = load_setup(setup_path)
+# student_data = read_from_yaml(student_data_path)
+# tracked_ressources = read_from_yaml(tracked_ressources_path)
+# constraints, ignored_ressources = extract_constraints_from_table(
+#     raw_data, setup, student_data, tracked_ressources
+# )
+
+
 # INTERVALS CREATION
 for activity in activities:
     label = activity.label
@@ -77,6 +101,12 @@ for activity in activities:
     said = str(aid).zfill(4)
     start = model.NewIntVar(0, horizon, f"start_{said}")
     end = model.NewIntVar(0, horizon, f"end_{said}")
+    if activity.start != None:
+        model.AddHint(start, activity.start)
+    if activity.earliest_start_slot != None:
+        model.Add(start >= activity.earliest_start_slot)
+    if activity.latest_start_slot != None:
+        model.Add(start <= activity.latest_start_slot)
     duration = activity.duration
     # model.Add(end == start + duration) # overkill ? Enforced by IntevalVar : https://developers.google.com/optimization/reference/python/sat/python/cp_model#newintervalvar
     interval = model.NewIntervalVar(start, duration, end, f"activity_{said}")
@@ -239,8 +269,9 @@ else:
 print("SOLVING ...")
 solver = cp_model.CpSolver()
 solver.parameters.max_time_in_seconds = 120  # 54000 = 15h
-solver.parameters.num_search_workers = 16
+solver.parameters.num_search_workers = 8
 # solver.parameters.log_search_progress = True
+# solver.fix_variables_to_their_hinted_value = True
 
 
 solution_printer = SolutionPrinter(limit=25)  # 30 is OK
@@ -257,8 +288,12 @@ if not solver_final_status == "INFEASIBLE":
     activities_dic = {a.id: a for a in activities}
     for aid, start in activities_starts.items():
         start_slot = solver.Value(start)
-        start_datetime = slot_to_datetime(
-            start_slot, setup["ORIGIN_DATETIME"], setup["TIME_SLOT_DURATION"]
-        )
         alabel = activities_dic[aid].label
+        activity = activities_dic[aid]
+        activity.start = start_slot
+        start_datetime = activity.start_datetime
+
         print(f"Activity {aid} ({alabel}) starts at {start_slot} = {start_datetime}")
+
+session.commit()
+# session.close()
