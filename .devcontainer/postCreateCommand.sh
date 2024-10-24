@@ -12,3 +12,4 @@ echo ${localWorkspaceFolder}
 echo "#######################################################"
 
 /opt/conda/envs/${CONDA_ENV_NAME}/bin/pre-commit install
+cd .. && pip install -e .

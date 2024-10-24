@@ -97,7 +97,11 @@ def extract_constraints_from_table(
         "rooms": [r.label for r in project.rooms],
         "students": [s.label for s in project.students_groups],
     }
-
+    ressources_dic = {
+        "teachers": {t.full_name: t for t in project.teachers},
+        "rooms": {r.label: r for r in project.rooms},
+        "students": {s.label: s for s in project.students_groups},
+    }
     if format == "USMB":
         slot_string_key = 'Chaîne qui référenence les créneaux occupés par tranche de 15mn de "00:00" à "23:45". (de gauche à droite car n°1 = plage de 00:00 à 00:15 -> car n°96 = plage de 23:45 à 00:00)'
         raw_data = raw_data[raw_data["Année"].isna() == False]  # REMOVE LAST EMPTY LINE
@@ -151,14 +155,15 @@ def extract_constraints_from_table(
         data = pd.DataFrame(data)
 
         constraints = {}
+        static_activities_kwargs = []
         ignored_ressources = {"teachers": [], "rooms": [], "students": []}
-        for kind in ["teachers", "rooms"]:
+        for kind in ["teachers", "rooms", "students"]:
             constraints[kind] = {
                 r: {"unavailable": []} for r in tracked_ressources[kind]
             }
-        constraints["students"] = {
-            r.id: {"unavailable": []} for r in project.students_groups if r != None
-        }
+        # constraints["students"] = {
+        #     r.id: {"unavailable": []} for r in project.students_groups if r != None
+        # }
 
         for index, row in data.iterrows():
             start_time = TIME_SLOT_DURATION * row["from_dayslot"]
@@ -179,8 +184,21 @@ def extract_constraints_from_table(
                 "kind": "datetime",
                 "start": start_datetime.to_str(),
                 "end": end_datetime.to_str(),
-                "description": row["description"],
+                "label": row["description"],
             }
+            start_slot = project.datetime_to_slot(start_datetime, round="floor")
+            end_slot = project.datetime_to_slot(end_datetime, round="ceil")
+            duration = end_slot - start_slot
+            kwargs = {
+                "kind": "Imported",
+                "project": project,
+                "start": start_slot,
+                "duration": duration,
+                "label": row["description"],
+                "allocated_rooms": [],
+                "allocated_teachers": [],
+            }
+            # OLD VERSION
             for kind in ["teachers", "students", "rooms"]:
                 if kind == "students":
                     if row[kind] != "":
@@ -197,18 +215,43 @@ def extract_constraints_from_table(
                 if row_data != "":
                     ressources = [r.strip() for r in row_data.split(",")]
                     for ressource in ressources:
-                        if ressource in constraints[kind].keys():
+                        if ressource in tracked_ressources[kind]:
                             constraints[kind][ressource]["unavailable"].append(
                                 constraint
                             )
+                            if kind == "students":
+                                kwargs["students"] = ressources_dic[kind][ressource]
+                            elif kind == "teachers":
+                                kwargs["allocated_teachers"].append(
+                                    ressources_dic[kind][ressource]
+                                )
+                            elif kind == "rooms":
+                                kwargs["allocated_rooms"].append(
+                                    ressources_dic[kind][ressource]
+                                )
                         else:
                             ignored_ressources[kind].append(ressource)
+            static_activities_kwargs.append(kwargs)
+            # NEW VERSION
 
         for kind in ["teachers", "rooms", "students"]:
             ignored_ressources[kind] = sorted(list(set(ignored_ressources[kind])))
 
-        return constraints, ignored_ressources, tracked_ressources
+        return (
+            constraints,
+            ignored_ressources,
+            tracked_ressources,
+            static_activities_kwargs,
+        )
 
+
+# Static Activities
+existing_static_importerd_activities = (
+    session.query(StaticActivity).where(StaticActivity.kind == "Imported").all()
+)
+for static_activity in existing_static_importerd_activities:
+    session.delete(static_activity)
+session.commit()
 
 path = "filtered_data.csv"
 existing_activities_dir = (
@@ -229,10 +272,19 @@ else:
 # setup = load_setup(setup_path)
 # student_data = read_from_yaml(student_data_path)
 # tracked_ressources = read_from_yaml(tracked_ressources_path)
-constraints, ignored_ressources, tracked_ressources = extract_constraints_from_table(
-    raw_data, project
-)
+(
+    constraints,
+    ignored_ressources,
+    tracked_ressources,
+    static_activities_kwargs,
+) = extract_constraints_from_table(raw_data, project)
 
+# Adding Imported Static Activities
+for kwargs in static_activities_kwargs:
+
+    static_activity = StaticActivity(**kwargs)
+    session.add(static_activity)
+    session.commit()
 
 # INTERVALS CREATION
 for activity in activities:
@@ -436,4 +488,4 @@ if not solver_final_status == "INFEASIBLE":
         print(f"Activity {aid} ({alabel}) starts at {start_slot} = {start_datetime}")
 
 session.commit()
-# session.close()
+session.close()
