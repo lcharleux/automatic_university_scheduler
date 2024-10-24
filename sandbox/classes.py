@@ -136,6 +136,10 @@ class Project(Base):
         "WeekSlotsAvailabiblity", back_populates="project"
     )
     courses: Mapped[List["Course"]] = relationship("Course", back_populates="project")
+    teachers: Mapped[List["Teacher"]] = relationship(
+        "Teacher", back_populates="project"
+    )
+    rooms: Mapped[List["Room"]] = relationship("Room", back_populates="project")
 
     __table_args__ = (UniqueConstraint(*_unique_columns, name="_unique_project"),)
 
@@ -474,6 +478,8 @@ class Room(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     label: Mapped[str] = mapped_column(String(30), unique=True)
     capacity: Mapped[int] = mapped_column(Integer, nullable=False)
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
+    project: Mapped["Project"] = relationship(back_populates="rooms")
     activities_pools: Mapped[List["Activity"]] = relationship(
         secondary=activity_room_pool_association_table, back_populates="room_pool"
     )
@@ -585,6 +591,8 @@ class Teacher(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     label: Mapped[str] = mapped_column(String(30), unique=True)
     full_name: Mapped[str] = mapped_column(String(50), nullable=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
+    project: Mapped["Project"] = relationship(back_populates="teachers")
 
     activities_pools: Mapped[List["Activity"]] = relationship(
         secondary=activity_teacher_pool_association_table, back_populates="teacher_pool"

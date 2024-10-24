@@ -71,27 +71,167 @@ activities_ends = {}
 activities_durations = {}
 
 
-# # STATIC ACTIVITIES
-# path = "filtered_data.csv"
-# existing_activities_dir = "../existing_activities/extractions/"
+# STATIC ACTIVITIES
+
+
+def extract_constraints_from_table(
+    raw_data,
+    project,
+    format="USMB",
+    school="POLYTECH Annecy",
+):
+    setup = project.setup
+    # WEEK_STRUCTURE = setup["WEEK_STRUCTURE"]
+    # WEEK_STRUCTURE = setup["WEEK_STRUCTURE"]
+    # ORIGIN_DATETIME = setup["ORIGIN_DATETIME"]
+    # HORIZON = setup["HORIZON"]
+    TIME_SLOT_DURATION = setup["TIME_SLOT_DURATION"]
+    # MAX_WEEKS = setup["MAX_WEEKS"]
+    # TIME_SLOTS_PER_WEEK = setup["TIME_SLOTS_PER_WEEK"]
+
+    # DAYS_PER_WEEK = setup["DAYS_PER_WEEK"]
+    TIME_SLOTS_PER_DAY = setup["TIME_SLOTS_PER_DAY"]
+
+    tracked_ressources = {
+        "teachers": [t.full_name for t in project.teachers],
+        "rooms": [r.label for r in project.rooms],
+        "students": [s.label for s in project.students_groups],
+    }
+
+    if format == "USMB":
+        slot_string_key = 'Chaîne qui référenence les créneaux occupés par tranche de 15mn de "00:00" à "23:45". (de gauche à droite car n°1 = plage de 00:00 à 00:15 -> car n°96 = plage de 23:45 à 00:00)'
+        raw_data = raw_data[raw_data["Année"].isna() == False]  # REMOVE LAST EMPTY LINE
+
+        def process_weekday(s):
+            weekday_map = {
+                "lundi": 1,
+                "mardi": 2,
+                "mercredi": 3,
+                "jeudi": 4,
+                "vendredi": 5,
+                "samedi": 6,
+                "dimanche": 7,
+            }
+            return weekday_map[s]
+
+        def process_students_and_teachers(s):
+            if type(s) == float:
+                return ""
+            else:
+                return s.strip()
+
+        col_map = {
+            "year": lambda df: df["Année"].values.astype(np.int32),
+            "week": lambda df: df["Semaine"].values.astype(np.int32),
+            "weekday": lambda df: df["Jour"].map(process_weekday),
+            "from_dayslot": lambda df: df[slot_string_key].map(lambda s: s.index("1")),
+            "to_dayslot": lambda df: df[slot_string_key].map(
+                lambda s: TIME_SLOTS_PER_DAY - s[::-1].index("1")
+            ),
+            "rooms": lambda df: df["Liste des salles"].map(
+                lambda s: s.replace("Indéterminé", "")
+            ),
+            "students": lambda df: (df["Nom des groupes étudiants"]).map(
+                process_students_and_teachers
+            ),
+            "teachers": lambda df: df["_Bloc Liste Enseignants (étape 4)"].map(
+                process_students_and_teachers
+            ),
+            "school": lambda df: df["Composantes groupes étudiants"].map(
+                lambda s: s.replace("Indéterminé", "")
+            ),
+            "description": lambda df: df["Libellé Activité"].map(
+                process_students_and_teachers
+            ),
+        }
+
+        data = {}
+        for k, f in col_map.items():
+            data[k] = f(raw_data)
+        data = pd.DataFrame(data)
+
+        constraints = {}
+        ignored_ressources = {"teachers": [], "rooms": [], "students": []}
+        for kind in ["teachers", "rooms"]:
+            constraints[kind] = {
+                r: {"unavailable": []} for r in tracked_ressources[kind]
+            }
+        constraints["students"] = {
+            r.id: {"unavailable": []} for r in project.students_groups if r != None
+        }
+
+        for index, row in data.iterrows():
+            start_time = TIME_SLOT_DURATION * row["from_dayslot"]
+            start_time_seconds = start_time.total_seconds()
+            start_time_hours = int(start_time_seconds // 3600)
+            start_time_minutes = int(
+                (start_time_seconds - start_time_hours * 3600) // 60
+            )
+            start_str = f"{row['year']}-W{ str(row['week']).zfill(2)}-{row['weekday']} {str(start_time_hours).zfill(2) }:{str(start_time_minutes).zfill(2)}"
+            start_datetime = DT.from_str(start_str)
+            end_time = TIME_SLOT_DURATION * row["to_dayslot"]
+            end_time_seconds = end_time.total_seconds()
+            end_time_hours = int(end_time_seconds // 3600)
+            end_time_minutes = int((end_time_seconds - end_time_hours * 3600) // 60)
+            end_str = f"{row['year']}-W{ str(row['week']).zfill(2)}-{row['weekday']} {str(end_time_hours).zfill(2) }:{str(end_time_minutes).zfill(2)}"
+            end_datetime = DT.from_str(end_str)
+            constraint = {
+                "kind": "datetime",
+                "start": start_datetime.to_str(),
+                "end": end_datetime.to_str(),
+                "description": row["description"],
+            }
+            for kind in ["teachers", "students", "rooms"]:
+                if kind == "students":
+                    if row[kind] != "":
+                        schools_names = row["school"]
+                        if school in schools_names:
+                            row_data = row[kind]
+                        else:
+                            row_data = ""
+                    else:
+                        row_data = ""
+                else:
+                    row_data = row[kind]
+
+                if row_data != "":
+                    ressources = [r.strip() for r in row_data.split(",")]
+                    for ressource in ressources:
+                        if ressource in constraints[kind].keys():
+                            constraints[kind][ressource]["unavailable"].append(
+                                constraint
+                            )
+                        else:
+                            ignored_ressources[kind].append(ressource)
+
+        for kind in ["teachers", "rooms", "students"]:
+            ignored_ressources[kind] = sorted(list(set(ignored_ressources[kind])))
+
+        return constraints, ignored_ressources, tracked_ressources
+
+
+path = "filtered_data.csv"
+existing_activities_dir = (
+    "../doc/examples/basic_scheduling/existing_activities/extractions/"
+)
 # extracted_data_dir = "planification/outputs/extracted_data/"
 # setup_path = "setup.yaml"
 # tracked_ressources_path = "planification/preprocessing/tracked_ressources.yaml"
 # student_data_path = "student_data.yaml"
 
-# if path.endswith(".xlsx"):
-#     raw_data = pd.read_excel(f"{existing_activities_dir}{path}", header=0)
-# elif path.endswith(".csv"):
-#     raw_data = pd.read_csv(f"{existing_activities_dir}{path}", header=0)
-# else:
-#     raise ValueError("Invalid file format")
+if path.endswith(".xlsx"):
+    raw_data = pd.read_excel(f"{existing_activities_dir}{path}", header=0)
+elif path.endswith(".csv"):
+    raw_data = pd.read_csv(f"{existing_activities_dir}{path}", header=0)
+else:
+    raise ValueError("Invalid file format")
 # create_directory(extracted_data_dir)
 # setup = load_setup(setup_path)
 # student_data = read_from_yaml(student_data_path)
 # tracked_ressources = read_from_yaml(tracked_ressources_path)
-# constraints, ignored_ressources = extract_constraints_from_table(
-#     raw_data, setup, student_data, tracked_ressources
-# )
+constraints, ignored_ressources, tracked_ressources = extract_constraints_from_table(
+    raw_data, project
+)
 
 
 # INTERVALS CREATION

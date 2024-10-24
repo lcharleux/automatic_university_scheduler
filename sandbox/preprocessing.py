@@ -147,7 +147,12 @@ def create_teachers(session, project, teachers_data):
     for label, teacher_data in teachers_data.items():
         full_name = teacher_data["full_name"]
         teachers[label] = get_or_create(
-            session, Teacher, label=label, full_name=full_name, commit=True
+            session,
+            Teacher,
+            label=label,
+            full_name=full_name,
+            project=project,
+            commit=True,
         )
         teachers_unavailable_static_activities[label] = []
         for constraint in teacher_data["unavailable"]:
@@ -194,7 +199,7 @@ def create_activities_and_rooms(
 
     for label in sorted(list(rooms_labels)):
         rooms[label] = get_or_create(
-            session, Room, label=label, capacity=30, commit=True
+            session, Room, label=label, project=project, capacity=30, commit=True
         )
 
     for course_label, course_data in courses_data.items():
