@@ -221,10 +221,18 @@ class Project(Base):
             raise ValueError("Duration must be either an integer or a string")
 
     def slots_to_duration(self, slots):
-        return TimeDelta(seconds=slots * self.time_slot_duration_seconds)
+        if slots == None:
+            return None
+        else:
+            return TimeDelta(seconds=slots * self.time_slot_duration_seconds)
 
     def slots_to_datetime(self, slots):
-        return DT.from_datetime(slots * self.time_slot_duration + self.origin_datetime)
+        if slots == None:
+            return None
+        else:
+            return DT.from_datetime(
+                slots * self.time_slot_duration + self.origin_datetime
+            )
 
     def datetime_to_slot(self, dt, round="floor"):
         if type(dt) == str:

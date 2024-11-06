@@ -64,7 +64,7 @@ _internal_variables:
     - &room_IDU-3_SNI3 ["A-POLY-B120"]
     - &room_MECA-FISE-3 ["A-POLY-B120"]
     - &room_MECA-FISE-3_A_TD ["A-POLY-C110"]
-    - &room_MECA-FISE-3_B_TD ["A-POLY-C109"]
+    - &room_MECA-FISE-3_B_TD ["A-POLY-C104"]
     - &room_MECA-FISE-3_C_TD ["A-POLY-A204"]
     - &room_SNI-3_D_TD ["A-POLY-A022"]
     - &room_SNI-3_D1 ["A-POLY-A022"]
@@ -412,14 +412,14 @@ courses:
           kind: succession,
           activities: [CM2],
           start_after: [TD1],
-          min_offset: "5d",
+          min_offset: "1d",
           max_offset: null,
         }
       - {
           kind: succession,
           activities: [CM3],
           start_after: [TD2],
-          min_offset: "5d",
+          min_offset: "1d",
           max_offset: null,
         }
       # - { # THIS IS A CLONE OF THE PREVIOUS CONSTRAINT

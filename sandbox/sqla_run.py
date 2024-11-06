@@ -257,10 +257,6 @@ path = "filtered_data.csv"
 existing_activities_dir = (
     "../doc/examples/basic_scheduling/existing_activities/extractions/"
 )
-# extracted_data_dir = "planification/outputs/extracted_data/"
-# setup_path = "setup.yaml"
-# tracked_ressources_path = "planification/preprocessing/tracked_ressources.yaml"
-# student_data_path = "student_data.yaml"
 
 if path.endswith(".xlsx"):
     raw_data = pd.read_excel(f"{existing_activities_dir}{path}", header=0)
@@ -268,10 +264,6 @@ elif path.endswith(".csv"):
     raw_data = pd.read_csv(f"{existing_activities_dir}{path}", header=0)
 else:
     raise ValueError("Invalid file format")
-# create_directory(extracted_data_dir)
-# setup = load_setup(setup_path)
-# student_data = read_from_yaml(student_data_path)
-# tracked_ressources = read_from_yaml(tracked_ressources_path)
 (
     constraints,
     ignored_ressources,
@@ -285,6 +277,8 @@ for kwargs in static_activities_kwargs:
     static_activity = StaticActivity(**kwargs)
     session.add(static_activity)
     session.commit()
+
+static_activities = session.execute(select(StaticActivity)).scalars().all()
 
 # INTERVALS CREATION
 for activity in activities:
