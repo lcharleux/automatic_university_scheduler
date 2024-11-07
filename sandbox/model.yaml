@@ -1,7 +1,7 @@
 # SETUP
 setup:
-  origin_datetime: "2024-W36-1 00:00"
-  horizon_datetime: "2024-W40-7 23:59"
+  origin_datetime: "2024-W35-1 08:00"
+  horizon_datetime: "2024-W43-3 19:30"
   week_structure: [
       #  0h   1h   2h   3h   4h   5h   6h   7h   8h   9h   10h  11h  12h  13h  14h  15h  16h  17h  18h  19h  20h  21h  22h  23h
       "0000 0000 0000 0000 0000 0000 0000 0000 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 0000 0000 0000 0000 0000", # MONDAY
@@ -241,7 +241,7 @@ courses:
           pool: *room_MECA-FISE-3
           value: 1
         students: "MECA-3"
-        earliest_start: "2024-W37-3 08:00"
+        earliest_start: "2024-W37-5 10:00"
         latest_start: "2024-W37-5 18:00"
 
       CM2:
@@ -361,6 +361,72 @@ courses:
           value: 1
         students: "MECA-FISE-3-C-TD"
 
+      # TP
+      TP1-A1:
+        kind: TP
+        duration: 16
+        teachers:
+          pool: [AA]
+          value: 1
+        rooms:
+          pool: *room_info_rooms
+          value: 1
+        students: "MECA-FISE-3-A1-TP"
+
+      TP1-A2:
+        kind: TP
+        duration: 16
+        teachers:
+          pool: [AA]
+          value: 1
+        rooms:
+          pool: *room_info_rooms
+          value: 1
+        students: "MECA-FISE-3-A2-TP"
+
+      TP1-B1:
+        kind: TP
+        duration: 16
+        teachers:
+          pool: [AA]
+          value: 1
+        rooms:
+          pool: *room_info_rooms
+          value: 1
+        students: "MECA-FISE-3-B1-TP"
+
+      TP1-B2:
+        kind: TP
+        duration: 16
+        teachers:
+          pool: [AA]
+          value: 1
+        rooms:
+          pool: *room_info_rooms
+          value: 1
+        students: "MECA-FISE-3-B2-TP"
+
+      TP1-C1:
+        kind: TP
+        duration: 16
+        teachers:
+          pool: [AA]
+          value: 1
+        rooms:
+          pool: *room_info_rooms
+          value: 1
+        students: "MECA-FISE-3-C1-TP"
+
+      TP1-C2:
+        kind: TP
+        duration: 16
+        teachers:
+          pool: [AA]
+          value: 1
+        rooms:
+          pool: *room_info_rooms
+          value: 1
+        students: "MECA-FISE-3-C2-TP"
 
     inner_activity_groups:
       CM1: [CM1]
@@ -369,6 +435,8 @@ courses:
       TD1: [TD1-A, TD1-B, TD1-C]
       TD2: [TD2-A, TD2-B, TD2-C]
       TD3: [TD3-A, TD3-B, TD3-C]
+      TP1: [TP1-A1, TP1-A2, TP1-B1, TP1-B2, TP1-C1, TP1-C2]
+
 
     foreign_activity_groups:
       MECA653_CM1: [[MECA653, CM1]]
@@ -420,6 +488,13 @@ courses:
           activities: [CM3],
           start_after: [TD2],
           min_offset: "1d",
+          max_offset: null,
+        }
+      - {
+          kind: succession,
+          activities: [TP1],
+          start_after: [TD3],
+          min_offset: "15m",
           max_offset: null,
         }
       # - { # THIS IS A CLONE OF THE PREVIOUS CONSTRAINT

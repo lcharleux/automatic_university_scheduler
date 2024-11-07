@@ -182,10 +182,10 @@ class Project(Base):
         """
         Load the setup file.
         """
-
+        horizon = self.horizon
         origin_datetime = self.origin
         time_slot_duration = self.time_slot_duration
-        horizon_datetime = self.origin + self.horizon * time_slot_duration
+        horizon_datetime = self.origin + horizon * time_slot_duration
         origin_monday = DT.fromisocalendar(
             origin_datetime.isocalendar().year, origin_datetime.isocalendar().week, 1
         )
@@ -200,12 +200,12 @@ class Project(Base):
         out["TIME_SLOTS_PER_DAY"] = ONE_DAY // time_slot_duration
         out["ORIGIN_DATETIME"] = origin_datetime
         out["HORIZON_DATETIME"] = horizon_datetime
-        out["HORIZON_MONDAY"] = horizon_monday
+        # out["HORIZON_MONDAY"] = horizon_monday
         out["ORIGIN_MONDAY"] = origin_monday
         out["MAX_WEEKS"] = (horizon_monday - origin_monday) // ONE_WEEK + 1
         out["TIME_SLOT_DURATION"] = time_slot_duration
         out["TIME_SLOTS_PER_WEEK"] = out["DAYS_PER_WEEK"] * out["TIME_SLOTS_PER_DAY"]
-        out["HORIZON"] = out["MAX_WEEKS"] * out["TIME_SLOTS_PER_WEEK"]
+        out["HORIZON"] = horizon
         return out
 
     def duration_to_slots(self, duration):
@@ -751,9 +751,9 @@ def load_setup(data):
     out["DAYS_PER_WEEK"], out["TIME_SLOTS_PER_DAY"] = out["WEEK_STRUCTURE"].shape
     out["ORIGIN_DATETIME"] = origin_datetime
     out["HORIZON_DATETIME"] = horizon_datetime
-    out["HORIZON_MONDAY"] = horizon_monday
-    out["ORIGIN_MONDAY"] = origin_monday
-    out["MAX_WEEKS"] = (horizon_monday - origin_monday) // ONE_WEEK + 1
+    # out["HORIZON_MONDAY"] = horizon_monday
+    # out["ORIGIN_MONDAY"] = origin_monday
+    # out["MAX_WEEKS"] = (horizon_monday - origin_monday) // ONE_WEEK + 1
     out["TIME_SLOT_DURATION"] = ONE_DAY / out["TIME_SLOTS_PER_DAY"]
     out["TIME_SLOTS_PER_WEEK"] = out["DAYS_PER_WEEK"] * out["TIME_SLOTS_PER_DAY"]
     out["HORIZON"] = datetime_to_slot(

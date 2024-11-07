@@ -58,7 +58,7 @@ WEEK_STRUCTURE = setup["WEEK_STRUCTURE"]
 ORIGIN_DATETIME = setup["ORIGIN_DATETIME"]
 HORIZON = setup["HORIZON"]
 TIME_SLOT_DURATION = setup["TIME_SLOT_DURATION"]
-MAX_WEEKS = setup["MAX_WEEKS"]
+# MAX_WEEKS = setup["MAX_WEEKS"]
 
 
 project = get_or_create(

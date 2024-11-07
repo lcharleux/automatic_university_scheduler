@@ -13,3 +13,5 @@ doc/examples/basic_scheduling/existing_activities/extractions/ade-export-polytec
 doc/examples/basic_scheduling/existing_activities/extractions/raw_data.csv
 **/.DS_Store
 *.db
+*.html
+sandbox/course_MATE001_graph.html

@@ -25,6 +25,7 @@ from automatic_university_scheduler.scheduling import SolutionPrinter
 from automatic_university_scheduler.datetimeutils import slot_to_datetime
 import time
 import pandas as pd
+from scipy import ndimage
 
 setup = yaml.safe_load(open("setup.yaml"))
 
@@ -54,8 +55,6 @@ model = cp_model.CpModel()
 setup = project.setup
 horizon = setup["HORIZON"]
 time_slot_duration = setup["TIME_SLOT_DURATION"]
-
-# Existing activities : TODO
 
 # Create constraints:
 # horizon = HORIZON
@@ -361,6 +360,8 @@ for starts_after in starts_after_constraints:
 
 
 # ALLOWED TIME SLOTS PER KIND
+origin_monday = project.setup["ORIGIN_MONDAY"]
+origin_monday_slot = project.datetime_to_slot(origin_monday, round="floor")
 tspd = project.time_slots_per_day
 all_daily_slots = np.arange(tspd) + 1
 for akind in activity_kinds:
@@ -373,10 +374,11 @@ for akind in activity_kinds:
         aid = activity.id
         said = str(aid).zfill(4)
         start = activities_starts[aid]
-        start_m96 = model.NewIntVar(1, horizon, f"start_mod_{tspd}_{said}")
-        model.AddModuloEquality(start_m96, start, 96)
+        start_m96 = model.NewIntVar(-horizon, horizon, f"start_mod_{tspd}_{said}")
+        model.AddModuloEquality(start_m96, start - origin_monday_slot, 96)
         for fslot in activity_forbidden_slots:
             model.Add(start_m96 != fslot)
+
 
 # NO OVERLAP
 for teacher, intervals in teacher_intervals.items():
@@ -422,6 +424,52 @@ for student, static_intervals in atomic_students_static_intervals.items():
         for static_interval in static_intervals:
             for interval in atomic_students_intervals[student]:
                 model.AddNoOverlap([static_interval, interval])
+
+# WEEKLY UNAVAILABILITY
+origin = project.origin_datetime
+origin_monday = project.setup["ORIGIN_MONDAY"]
+origin_monday_slot = project.datetime_to_slot(origin_monday, round="floor")
+max_weeks = project.setup["MAX_WEEKS"]
+time_slots_per_week = project.setup["TIME_SLOTS_PER_WEEK"]  # 672
+horizon = project.setup["HORIZON"]
+
+weekly_unavailable_intervals = []
+weekly_unavailable_slots = (project.week_structure.T.flatten() == 0) * 1.0
+weekly_unavailable_slots_intervals = []
+
+wusl, nlab = ndimage.label(weekly_unavailable_slots)
+wusl2 = [(s[0].start, s[0].stop) for s in ndimage.find_objects(wusl, max_label=nlab)]
+
+for w in range(max_weeks):
+    for (
+        nint,
+        interval,
+    ) in enumerate(wusl2):
+        start, stop = interval
+        start_slot = origin_monday_slot + start + w * time_slots_per_week
+        end_slot = origin_monday_slot + stop + w * time_slots_per_week
+        if start_slot <= 0:
+            start_slot = 0
+        elif start_slot >= horizon:
+            start_slot = horizon
+        if end_slot <= start_slot:
+            end_slot = 0
+        elif end_slot >= horizon:
+            end_slot = horizon
+        duration = end_slot - start_slot
+        if duration > 0:
+            interval = model.NewIntervalVar(
+                start_slot,
+                duration,
+                end_slot,
+                f"weekly_unavailable_w{w+1}_interval{nint}",
+            )
+            weekly_unavailable_intervals.append(interval)
+
+for student, intervals in atomic_students_intervals.items():
+    for sinterval in intervals:
+        for interval in weekly_unavailable_intervals:
+            model.AddNoOverlap([interval, sinterval])
 
 # for room, static_interval in room_static_intervals.items():
 #     if len(intervals) > 1:
@@ -482,4 +530,4 @@ if not solver_final_status == "INFEASIBLE":
         print(f"Activity {aid} ({alabel}) starts at {start_slot} = {start_datetime}")
 
 session.commit()
-session.close()
+# session.close()
