@@ -39,9 +39,7 @@ model = cp_model.CpModel()
 delete_imported_static_activities(session)
 
 path = "filtered_data.csv"
-existing_activities_dir = (
-    "../doc/examples/basic_scheduling/existing_activities/extractions/"
-)
+existing_activities_dir = "existing_activities/extractions/"
 
 if path.endswith(".xlsx"):
     raw_data = pd.read_excel(f"{existing_activities_dir}{path}", header=0)
