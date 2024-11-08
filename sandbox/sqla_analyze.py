@@ -1,4 +1,4 @@
-from classes import (
+from automatic_university_scheduler.database import (
     Base,
     Room,
     Activity,
@@ -9,7 +9,6 @@ from classes import (
     StartsAfterConstraint,
     ActivityGroup,
     ActivityKind,
-    absolute_week_duration_deviation,
     StaticActivity,
     Course,
 )
@@ -22,7 +21,7 @@ import itertools
 import numpy as np
 from automatic_university_scheduler.datetimeutils import DateTime as DT
 from automatic_university_scheduler.utils import Messages
-from automatic_university_scheduler.scheduling import SolutionPrinter
+from automatic_university_scheduler.optimize import SolutionPrinter
 from automatic_university_scheduler.datetimeutils import slot_to_datetime
 from automatic_university_scheduler.validation import cycles_in_graph, graph_degrees
 import time
@@ -52,7 +51,7 @@ $TITLE
 """
 
 
-def graph_to_mermaid(graph) -> str:
+def graph_to_mermaid(graph, title="Constraints Graph") -> str:
 
     """
     Converts YAML constraint model to Mermaid graph.
@@ -85,7 +84,7 @@ def graph_to_mermaid(graph) -> str:
         text_constraints += f"        {start} -->|{offset}| {end}\n"
 
     text_constraints = Template(_mermaid_flow_template).substitute(
-        GRAPH=text_constraints, TITLE="Constraints Graph"
+        GRAPH=text_constraints, TITLE=title
     )
 
     return text_constraints
@@ -176,6 +175,8 @@ for course in courses:
     print(f"Course: {course.label}")
     graph_degrees_df, cycles = analyze_contraints_graph(G)
 
-    mermaid_graph = graph_to_mermaid(G)
+    mermaid_graph = graph_to_mermaid(
+        G, title=f"Course {course.label} Constraints Graph"
+    )
     with open(f"course_{course.label}_graph.html", "w") as f:
         f.write(mermaid_graph)

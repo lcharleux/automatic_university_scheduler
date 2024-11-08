@@ -1,33 +1,17 @@
-from classes import (
+from automatic_university_scheduler.database import (
     Base,
-    Room,
-    Activity,
-    Teacher,
-    AtomicStudent,
-    StudentsGroup,
     Project,
-    StaticActivity,
-    ActivityGroup,
-    StartsAfterConstraint,
-    DailySlot,
-    ActivityKind,
-    WeekDay,
-    WeekSlotsAvailabiblity,
-    load_setup,
 )
-from sqlalchemy import create_engine, select
+
+from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError
 import yaml
 import os
 import numpy as np
 from automatic_university_scheduler.datetimeutils import DateTime as DT
-from automatic_university_scheduler.datetimeutils import datetime_to_slot, TimeDelta
-from automatic_university_scheduler.scheduling import read_json_data
-import math
-import itertools
-import datetime
-from preprocessing import (
+from automatic_university_scheduler.utils import create_instance
+from automatic_university_scheduler.preprocessing import (
+    load_setup,
     create_students,
     create_daily_slots,
     create_teachers,
@@ -36,19 +20,22 @@ from preprocessing import (
     create_week_structure,
     create_weekdays,
 )
-from db_utils import get_or_create
+from automatic_university_scheduler.utils import Messages
 
 model = yaml.safe_load(open("model.yaml"))
 db_info = yaml.safe_load(open("setup.yaml"))
 try:
     os.remove("./data.db")
-    print("Database removed")
+    print("Database removed", end=" ")
+    print(f"=> {Messages.SUCCESS}")
 except:
-    print("Database not found and then not removed.")
+    print("Database not found and then not removed.", "=>", Messages.WARNING)
 
-print("Creating database")
+print("Creating database", end=" ")
 engine = create_engine(db_info["engine"], echo=False)
 Base.metadata.create_all(engine)
+print(f"=> {Messages.SUCCESS}")
+
 
 session = Session(engine)
 
@@ -58,10 +45,9 @@ WEEK_STRUCTURE = setup["WEEK_STRUCTURE"]
 ORIGIN_DATETIME = setup["ORIGIN_DATETIME"]
 HORIZON = setup["HORIZON"]
 TIME_SLOT_DURATION = setup["TIME_SLOT_DURATION"]
-# MAX_WEEKS = setup["MAX_WEEKS"]
 
 
-project = get_or_create(
+project = create_instance(
     session,
     Project,
     label="project",
@@ -88,9 +74,9 @@ activity_kinds = create_activity_kinds(
 
 
 # STUDENTS
-print("Creating students")
+print("Creating students", end=" ")
 atomic_students, students_groups = create_students(session, project, model["students"])
-
+print(f"=> {Messages.SUCCESS}")
 
 # TEACHERS
 teachers, teachers_unavailable_static_activities = create_teachers(

@@ -52,6 +52,13 @@ setup:
         - 32
         - 53
         - 57
+    PROJ:
+      allowed_start_time_slots:
+        - 33
+        - 40
+        - 53
+        - 60
+        - 67
 
 _internal_variables:
   durations:
@@ -236,12 +243,12 @@ courses:
         duration: "1h-30m"
         teachers:
           pool: [AA]
-          value: 1
+          count: 1
         rooms:
           pool: *room_MECA-FISE-3
-          value: 1
+          count: 1
         students: "MECA-3"
-        earliest_start: "2024-W37-5 10:00"
+        earliest_start: "2024-W37-5 12:00"
         latest_start: "2024-W37-5 18:00"
 
       CM2:
@@ -249,21 +256,23 @@ courses:
         duration: 6
         teachers:
           pool: [AA]
-          value: 1
+          count: 1
         rooms:
           pool: *room_MECA-FISE-3
-          value: 1
+          count: 1
         students: "MECA-3"
+        # earliest_start: "2024-W38-3 12:00"
+        # latest_start: "2024-W38-5 18:00"
 
       CM3:
         kind: CM
         duration: 6
         teachers:
           pool: [AA]
-          value: 1
+          count: 1
         rooms:
           pool: *room_MECA-FISE-3
-          value: 1
+          count: 1
         students: "MECA-3"
 
 
@@ -274,30 +283,30 @@ courses:
         duration: 6
         teachers:
           pool: [AA]
-          value: 1
+          count: 1
         rooms:
           pool: *room_MECA-FISE-3_A_TD
-          value: 1
+          count: 1
         students: "MECA-FISE-3-A-TD"
       TD1-B:
         kind: TD
         duration: 6
         teachers:
           pool: [BB]
-          value: 1
+          count: 1
         rooms:
           pool: *room_MECA-FISE-3_B_TD
-          value: 1
+          count: 1
         students: "MECA-FISE-3-B-TD"
       TD1-C:
         kind: TD
         duration: 6
         teachers:
           pool: [AA]
-          value: 1
+          count: 1
         rooms:
           pool: *room_MECA-FISE-3_C_TD
-          value: 1
+          count: 1
         students: "MECA-FISE-3-C-TD"
 
       TD2-A:
@@ -305,60 +314,60 @@ courses:
         duration: 6
         teachers:
           pool: [AA]
-          value: 1
+          count: 1
         rooms:
           pool: *room_MECA-FISE-3_A_TD
-          value: 1
+          count: 1
         students: "MECA-FISE-3-A-TD"
       TD2-B:
         kind: TD
         duration: 6
         teachers:
           pool: [BB]
-          value: 1
+          count: 1
         rooms:
           pool: *room_MECA-FISE-3_B_TD
-          value: 1
+          count: 1
         students: "MECA-FISE-3-B-TD"
       TD2-C:
         kind: TD
         duration: 6
         teachers:
           pool: [AA]
-          value: 1
+          count: 1
         rooms:
           pool: *room_MECA-FISE-3_C_TD
-          value: 1
+          count: 1
         students: "MECA-FISE-3-C-TD"
       TD3-A:
         kind: TD
         duration: 6
         teachers:
           pool: [AA]
-          value: 1
+          count: 1
         rooms:
           pool: *room_MECA-FISE-3_A_TD
-          value: 1
+          count: 1
         students: "MECA-FISE-3-A-TD"
       TD3-B:
         kind: TD
         duration: 6
         teachers:
           pool: [BB]
-          value: 1
+          count: 1
         rooms:
           pool: *room_MECA-FISE-3_B_TD
-          value: 1
+          count: 1
         students: "MECA-FISE-3-B-TD"
       TD3-C:
         kind: TD
         duration: 6
         teachers:
           pool: [AA]
-          value: 1
+          count: 1
         rooms:
           pool: *room_MECA-FISE-3_C_TD
-          value: 1
+          count: 1
         students: "MECA-FISE-3-C-TD"
 
       # TP
@@ -367,10 +376,10 @@ courses:
         duration: 16
         teachers:
           pool: [AA]
-          value: 1
+          count: 1
         rooms:
           pool: *room_info_rooms
-          value: 1
+          count: 1
         students: "MECA-FISE-3-A1-TP"
 
       TP1-A2:
@@ -378,10 +387,10 @@ courses:
         duration: 16
         teachers:
           pool: [AA]
-          value: 1
+          count: 1
         rooms:
           pool: *room_info_rooms
-          value: 1
+          count: 1
         students: "MECA-FISE-3-A2-TP"
 
       TP1-B1:
@@ -389,10 +398,10 @@ courses:
         duration: 16
         teachers:
           pool: [AA]
-          value: 1
+          count: 1
         rooms:
           pool: *room_info_rooms
-          value: 1
+          count: 1
         students: "MECA-FISE-3-B1-TP"
 
       TP1-B2:
@@ -400,10 +409,10 @@ courses:
         duration: 16
         teachers:
           pool: [AA]
-          value: 1
+          count: 1
         rooms:
           pool: *room_info_rooms
-          value: 1
+          count: 1
         students: "MECA-FISE-3-B2-TP"
 
       TP1-C1:
@@ -411,10 +420,10 @@ courses:
         duration: 16
         teachers:
           pool: [AA]
-          value: 1
+          count: 1
         rooms:
           pool: *room_info_rooms
-          value: 1
+          count: 1
         students: "MECA-FISE-3-C1-TP"
 
       TP1-C2:
@@ -422,11 +431,24 @@ courses:
         duration: 16
         teachers:
           pool: [AA]
-          value: 1
+          count: 1
         rooms:
           pool: *room_info_rooms
-          value: 1
+          count: 1
         students: "MECA-FISE-3-C2-TP"
+
+      PROJ1:
+        kind: PROJ
+        duration: 6
+        teachers:
+          pool: [BB, AA]
+          count: 2
+        rooms:
+          pool: *room_MECA-FISE-3
+          count: 1
+        students: "MECA-3"
+        # earliest_start: "2024-W38-3 12:00"
+        # latest_start: "2024-W38-5 18:00"
 
     inner_activity_groups:
       CM1: [CM1]
@@ -436,6 +458,7 @@ courses:
       TD2: [TD2-A, TD2-B, TD2-C]
       TD3: [TD3-A, TD3-B, TD3-C]
       TP1: [TP1-A1, TP1-A2, TP1-B1, TP1-B2, TP1-C1, TP1-C2]
+      PROJ1: [PROJ1]
 
 
     foreign_activity_groups:
@@ -495,6 +518,20 @@ courses:
           activities: [TP1],
           start_after: [TD3],
           min_offset: "15m",
+          max_offset: null,
+        }
+      - {
+          kind: succession,
+          activities: [PROJ1],
+          start_after: [CM3],
+          min_offset: "1d",
+          max_offset: null,
+        }
+      - {
+          kind: succession,
+          activities: [TP1],
+          start_after: [PROJ1],
+          min_offset: "1d",
           max_offset: null,
         }
       # - { # THIS IS A CLONE OF THE PREVIOUS CONSTRAINT

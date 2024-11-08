@@ -66,3 +66,14 @@ class Messages:
     SOURCE = f"{Colors.CYAN}SOURCE{Colors.OFF}"
     SINK = f"{Colors.CYAN}SINK{Colors.OFF}"
     FAIL = f"{Colors.RED}FAIL{Colors.OFF}"
+
+
+def create_instance(session, cls, commit=False, **kwargs):
+    """
+    Create an instance of a SQLAlchemy model.
+    """
+    instance = cls(**kwargs)
+    session.add(instance)
+    if commit:
+        session.commit()
+    return instance
