@@ -19,5 +19,6 @@ dependencies:
   - networkx
   - matplotlib
   - sqlalchemy
+  - just
   - pip:
     - ortools

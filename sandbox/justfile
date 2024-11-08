@@ -1,0 +1,8 @@
+load:
+    python sqla_loader.py
+
+run:
+    python sqla_run.py
+
+analyze:
+    python sqla_analyze.py
