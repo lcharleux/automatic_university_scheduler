@@ -85,7 +85,9 @@ for course in project.courses:
     msg = MIMEMultipart("related")
     msg["To"] = to_address
     msg["From"] = from_address
-    msg["Subject"] = "[Planification autmatique] Modélisation du module " + course.label
+    msg["Subject"] = (
+        "[Planification automatique] Validation modèle du module " + course.label
+    )
     msg["Importance"] = "high"
 
     # Create the alternative part
