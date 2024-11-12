@@ -1,3 +1,4 @@
 engine: "sqlite:///data.db"
+output_dir: "output/"
 # courses_data_folder: "../doc/examples/basic_scheduling/course_models/"
 # project_data_folder: "../doc/examples/basic_scheduling/"

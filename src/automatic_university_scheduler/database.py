@@ -23,6 +23,8 @@ from automatic_university_scheduler.datetimeutils import DateTime as DT
 from automatic_university_scheduler.datetimeutils import TimeDelta, datetime_to_slot
 import math
 import numpy as np
+import networkx as nx
+import pandas as pd
 
 
 class Base(DeclarativeBase):
@@ -427,6 +429,58 @@ class Activity(Base):
     def end_datetime(self):
         return self.project.slots_to_datetime(self.end)
 
+    @property
+    def duration_timedelta(self):
+        return self.project.slots_to_duration(self.duration)
+
+    @property
+    def ressources_to_series(self):
+        out = {
+            "id": self.id,
+            "label": self.label,
+            "kind": self.kind.label,
+            "duration": self.project.slots_to_duration(self.duration).to_str(),
+            "students": self.students.label,
+            "teacher_pool": ", ".join([t.full_name for t in self.teacher_pool]),
+            "teacher_count": self.teacher_count,
+            "room_pool": ", ".join([r.label for r in self.room_pool]),
+            "room_count": self.room_count,
+        }
+        return pd.Series(out)
+
+    @property
+    def planification_to_series(self):
+        start = self.start_datetime
+        end = self.end_datetime
+        start_isocalendar = start.isocalendar()
+        week = start_isocalendar.week
+        weekday = start_isocalendar.weekday
+        year = start_isocalendar.year
+        start_clock = f"{start.hour:02d}:{start.minute:02d}"
+        end_clock = f"{end.hour:02d}:{end.minute:02d}"
+        duration = self.duration_timedelta.to_str()
+        out = {
+            "id": self.id,
+            "label": self.label,
+            "kind": self.kind.label,
+            "start_slot": self.start,
+            "week": week,
+            "weekday": weekday,
+            "start": start_clock,
+            "end": end_clock,
+            "duration": duration,
+            "students": self.students.label,
+            "allocated_teachers": ", ".join(
+                [t.full_name for t in self.allocated_teachers]
+            ),
+            "allocated_rooms": ", ".join([r.label for r in self.allocated_rooms]),
+            "teacher_pool": ", ".join([t.full_name for t in self.teacher_pool]),
+            "teacher_count": self.teacher_count,
+            "room_pool": ", ".join([r.label for r in self.room_pool]),
+            "room_count": self.room_count,
+        }
+        return pd.Series(out)
+
 
 class Course(Base):
     __tablename__ = "course"
@@ -446,6 +500,28 @@ class Course(Base):
     def __repr__(self) -> str:
         name = self.__class__.__name__
         return f"<{name}: id={self.id}, label={self.label}>"
+
+    @property
+    def activity_graph(self):
+        G = nx.DiGraph()
+        ag = self.activity_groups
+        project = self.project
+        for group in ag:
+            l = group.label
+            G.add_node(l)
+            for sa in group.starts_after:
+                og = sa.to_activity_group
+                ol = og.label
+                G.add_edge(l, ol)
+                min_offset_slots = sa.min_offset
+                max_offset_slots = sa.max_offset
+                min_offset = project.slots_to_duration(min_offset_slots)
+                max_offset = project.slots_to_duration(max_offset_slots)
+                G.edges[l, ol]["min_offset_slots"] = min_offset_slots
+                G.edges[l, ol]["max_offset_slots"] = max_offset_slots
+                G.edges[l, ol]["min_offset"] = min_offset
+                G.edges[l, ol]["max_offset"] = max_offset
+        return G
 
 
 class ActivityGroup(Base):

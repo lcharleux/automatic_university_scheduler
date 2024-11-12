@@ -22,6 +22,9 @@ from automatic_university_scheduler.preprocessing import (
 )
 from automatic_university_scheduler.utils import Messages
 
+
+print(10 * "#" + " LOADING MODEL DATA INTO DATABASE " + 10 * "#")
+
 model = yaml.safe_load(open("model.yaml"))
 db_info = yaml.safe_load(open("setup.yaml"))
 try:
