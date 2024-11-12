@@ -141,6 +141,12 @@ class Project(Base):
     teachers: Mapped[List["Teacher"]] = relationship(
         "Teacher", back_populates="project"
     )
+    planners: Mapped[List["Planner"]] = relationship(
+        "Planner", back_populates="project"
+    )
+    managers: Mapped[List["Manager"]] = relationship(
+        "Manager", back_populates="project"
+    )
     rooms: Mapped[List["Room"]] = relationship("Room", back_populates="project")
 
     __table_args__ = (UniqueConstraint(*_unique_columns, name="_unique_project"),)
@@ -490,6 +496,15 @@ class Course(Base):
     label: Mapped[str] = mapped_column(String(30), unique=True)
     project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
     project: Mapped["Project"] = relationship(back_populates="courses")
+    # manager_id: Mapped[int] = mapped_column(ForeignKey("teacher.id"))
+    # manager: Mapped["Teacher"] = relationship(back_populates="managed_courses")
+    # planner_id: Mapped[int] = mapped_column(ForeignKey("teacher.id"))
+    # planner: Mapped["Teacher"] = relationship(back_populates="planned_courses")
+    manager_id: Mapped[int] = mapped_column(ForeignKey("manager.id"))
+    manager: Mapped["Manager"] = relationship(back_populates="courses")
+    planner_id: Mapped[int] = mapped_column(ForeignKey("planner.id"))
+    planner: Mapped["Planner"] = relationship(back_populates="courses")
+
     activities: Mapped[List["Activity"]] = relationship(
         "Activity", back_populates="course"
     )
@@ -499,7 +514,9 @@ class Course(Base):
 
     def __repr__(self) -> str:
         name = self.__class__.__name__
-        return f"<{name}: id={self.id}, label={self.label}>"
+        return (
+            f"<{name}: id={self.id}, label={self.label}, manager={self.manager.label}>"
+        )
 
     @property
     def activity_graph(self):
@@ -675,6 +692,9 @@ class Teacher(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     label: Mapped[str] = mapped_column(String(30), unique=True)
     full_name: Mapped[str] = mapped_column(String(50), nullable=True)
+    email: Mapped[str] = mapped_column(String(50), nullable=True)
+    # managed_courses: Mapped[List["Course"]] = relationship(back_populates="manager")
+    # planned_courses: Mapped[List["Course"]] = relationship(back_populates="planner")
     project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
     project: Mapped["Project"] = relationship(back_populates="teachers")
 
@@ -694,6 +714,28 @@ class Teacher(Base):
     def __repr__(self) -> str:
         name = self.__class__.__name__
         return f"<{name}: id={self.id}, label={self.label}>"
+
+
+class Planner(Base):
+    __tablename__ = "planner"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
+    project: Mapped["Project"] = relationship(back_populates="planners")
+    label: Mapped[str] = mapped_column(String(30), unique=True)
+    full_name: Mapped[str] = mapped_column(String(50), nullable=False)
+    email: Mapped[str] = mapped_column(String(50), nullable=False)
+    courses: Mapped[List["Course"]] = relationship(back_populates="planner")
+
+
+class Manager(Base):
+    __tablename__ = "manager"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
+    project: Mapped["Project"] = relationship(back_populates="managers")
+    label: Mapped[str] = mapped_column(String(30), unique=True)
+    full_name: Mapped[str] = mapped_column(String(50), nullable=False)
+    email: Mapped[str] = mapped_column(String(50), nullable=False)
+    courses: Mapped[List["Course"]] = relationship(back_populates="manager")
 
 
 class StartsAfterConstraint(Base):

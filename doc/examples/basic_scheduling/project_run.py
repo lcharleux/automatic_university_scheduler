@@ -153,4 +153,4 @@ if not solver_final_status == "INFEASIBLE":
         )
 
         session.commit()
-session.close()
+# session.close()

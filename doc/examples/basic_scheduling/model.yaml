@@ -236,6 +236,8 @@ students:
 courses:
   MATE001:
     color: pink
+    manager: AA
+    planner: LC
     activities:
       # CM
       CM1:
@@ -248,7 +250,7 @@ courses:
           pool: *room_MECA-FISE-3
           count: 1
         students: "MECA-3"
-        earliest_start: "2024-W37-5 12:00"
+        earliest_start: "2024-W37-5 14:00"
         latest_start: "2024-W37-5 18:00"
 
       CM2:
@@ -445,7 +447,7 @@ courses:
           count: 2
         rooms:
           pool: *room_MECA-FISE-3
-          count: 1
+          count: 0
         students: "MECA-3"
         # earliest_start: "2024-W38-3 12:00"
         # latest_start: "2024-W38-5 18:00"
@@ -545,6 +547,7 @@ courses:
 teachers:
   AA:
     full_name: AAAA ALBERT
+    email: aaa.albert@univ-smb.fr
     unavailable:
       - {
           # KIDS ON WEDNESDAY
@@ -570,6 +573,7 @@ teachers:
 
   BB:
     full_name: BBBB BORIS
+    email: bbb.boris@univ-smb.fr
     unavailable:
       - {
           # WORKS ONLY IN THE MORNING
@@ -579,3 +583,11 @@ teachers:
           "repeat":104,
           "offset": "1w",
         }
+managers:
+  AA:
+    full_name: AAAA ALBERT
+    email: aaa.albert@univ-smb.fr
+planners:
+  LC:
+    full_name: LUDOVIC CHARLEUX
+    email: ludovic.charleux@univ-smb.fr

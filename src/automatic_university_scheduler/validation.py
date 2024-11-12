@@ -2,9 +2,10 @@ import pandas as pd
 from string import Template
 import networkx as nx
 from automatic_university_scheduler.utils import Messages, Colors
+from mermaid.graph import Graph
+from mermaid import Mermaid
 
-
-_mermaid_flow_template = r"""
+_mermaid_flow_template_html = r"""
 <html lang="fr">
 <head>
     <meta charset="utf-8" />
@@ -25,6 +26,10 @@ $TITLE
 </html>
 """
 
+_mermaid_flow_template_png = r"""
+    flowchart TB
+    $GRAPH
+"""
 
 # def quarter_to_redeable(quarter):
 #     """
@@ -53,7 +58,7 @@ $TITLE
 #     return res
 
 
-def graph_to_mermaid(graph, title="Constraints Graph") -> str:
+def graph_to_mermaid(graph, path, title="Constraints Graph", format="html") -> str:
 
     """
     Converts YAML constraint model to Mermaid graph.
@@ -85,9 +90,19 @@ def graph_to_mermaid(graph, title="Constraints Graph") -> str:
 
         text_constraints += f"        {start} -->|{offset}| {end}\n"
 
-    text_constraints = Template(_mermaid_flow_template).substitute(
-        GRAPH=text_constraints, TITLE=title
-    )
+    if format == "html":
+        text_constraints = Template(_mermaid_flow_template_html).substitute(
+            GRAPH=text_constraints, TITLE=title
+        )
+        with open(path, "w") as f:
+            f.write(text_constraints)
+    if format == "png":
+        text_constraints = Template(_mermaid_flow_template_png).substitute(
+            GRAPH=text_constraints, TITLE=title
+        )
+        graph = Graph(title="simple graph", script=text_constraints)
+        render = Mermaid(graph)
+        render.to_png(path)
 
     return text_constraints
 
@@ -120,7 +135,7 @@ def analyze_contraints_graph(graph) -> pd.DataFrame:
         )
     if len(sink_nodes) == 1:
         print(
-            f"    SINK NODES: {sink_nodes[0]} is the only sink node = {Messages.SUCCESS}"
+            f"    SINK NODES: {sink_nodes[0]} is the only sink node => {Messages.SUCCESS}"
         )
     else:
         print(

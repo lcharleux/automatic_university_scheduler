@@ -15,6 +15,8 @@ from automatic_university_scheduler.database import (
     StaticActivity,
     AtomicStudent,
     StudentsGroup,
+    Manager,
+    Planner,
 )
 import numpy as np
 import itertools
@@ -200,40 +202,93 @@ def create_teachers(session, project, teachers_data):
     teachers_unavailable_static_activities = {}
     for label, teacher_data in teachers_data.items():
         full_name = teacher_data["full_name"]
+        if "email" in teacher_data.keys():
+            email = teacher_data["email"]
+        else:
+            email = ""
         teachers[label] = create_instance(
             session,
             Teacher,
             label=label,
             full_name=full_name,
+            email=email,
             project=project,
             commit=True,
         )
         teachers_unavailable_static_activities[label] = []
-        for constraint in teacher_data["unavailable"]:
-            static_activity_kwargs = {
-                "project": project,
-                "kind": "teacher unavailable",
-                "allocated_teachers": [teachers[label]],
-                "label": f"teacher {label} unavailable",
-            }
-            static_activities_kwargs = process_constraint_static_activity(
-                constraint=constraint,
-                origin_datetime=origin_datetime,
-                time_slot_duration=time_slot_duration,
-                horizon=horizon,
-                **static_activity_kwargs,
-            )
-
-            for static_activity_kwargs in static_activities_kwargs:
-                act = create_instance(
-                    session, StaticActivity, **static_activity_kwargs, commit=True
+        if "unavailable" in teacher_data.keys():
+            for constraint in teacher_data["unavailable"]:
+                static_activity_kwargs = {
+                    "project": project,
+                    "kind": "teacher unavailable",
+                    "allocated_teachers": [teachers[label]],
+                    "label": f"teacher {label} unavailable",
+                }
+                static_activities_kwargs = process_constraint_static_activity(
+                    constraint=constraint,
+                    origin_datetime=origin_datetime,
+                    time_slot_duration=time_slot_duration,
+                    horizon=horizon,
+                    **static_activity_kwargs,
                 )
-                teachers_unavailable_static_activities[label].append(act)
+
+                for static_activity_kwargs in static_activities_kwargs:
+                    act = create_instance(
+                        session, StaticActivity, **static_activity_kwargs, commit=True
+                    )
+                    teachers_unavailable_static_activities[label].append(act)
     return teachers, teachers_unavailable_static_activities
 
 
+def create_managers(session, project, managers_data):
+    managers = {}
+    for label, manager_data in managers_data.items():
+        full_name = manager_data["full_name"]
+        if "email" in manager_data.keys():
+            email = manager_data["email"]
+        else:
+            email = ""
+        managers[label] = create_instance(
+            session,
+            Manager,
+            label=label,
+            full_name=full_name,
+            email=email,
+            project=project,
+            commit=True,
+        )
+    return managers
+
+
+def create_planners(session, project, planners_data):
+    planners = {}
+    for label, planner_data in planners_data.items():
+        full_name = planner_data["full_name"]
+        if "email" in planner_data.keys():
+            email = planner_data["email"]
+        else:
+            email = ""
+        planners[label] = create_instance(
+            session,
+            Planner,
+            label=label,
+            full_name=full_name,
+            email=email,
+            project=project,
+            commit=True,
+        )
+    return planners
+
+
 def create_activities_and_rooms(
-    session, project, courses_data, teachers, students_groups, activity_kinds
+    session,
+    project,
+    courses_data,
+    teachers,
+    managers,
+    planners,
+    students_groups,
+    activity_kinds,
 ):
     """ """
     duration_to_slots = project.duration_to_slots
@@ -257,8 +312,16 @@ def create_activities_and_rooms(
         )
 
     for course_label, course_data in courses_data.items():
+        manager = managers[course_data["manager"]]
+        planner = planners[course_data["planner"]]
         course = create_instance(
-            session, Course, label=course_label, project=project, commit=True
+            session,
+            Course,
+            label=course_label,
+            project=project,
+            manager=manager,
+            planner=planner,
+            commit=True,
         )
         activities = course_data["activities"]
         for activity_label, activity_data in activities.items():

@@ -19,6 +19,8 @@ from automatic_university_scheduler.preprocessing import (
     create_activity_kinds,
     create_week_structure,
     create_weekdays,
+    create_managers,
+    create_planners,
 )
 from automatic_university_scheduler.utils import Messages
 
@@ -86,6 +88,12 @@ teachers, teachers_unavailable_static_activities = create_teachers(
     session, project, model["teachers"]
 )
 
+# MANAGERS
+managers = create_managers(session, project, model["managers"])
+
+# PLANNERS
+planners = create_planners(session, project, model["planners"])
+
 # ACTIVITIES
 (
     activities_dic,
@@ -97,6 +105,8 @@ teachers, teachers_unavailable_static_activities = create_teachers(
     project,
     model["courses"],
     teachers=teachers,
+    managers=managers,
+    planners=planners,
     students_groups=students_groups,
     activity_kinds=activity_kinds,
 )
