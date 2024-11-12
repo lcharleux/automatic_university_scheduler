@@ -176,8 +176,6 @@ def create_activities_variables(model, project):
         items.append(itertools.combinations(teacher_pool_ids, teacher_count))
         kind.append("teacher")
         combinations = [p for p in itertools.product(*items)]
-        print(f"Activity {aid} ({label}) has {len(combinations)} alternatives")
-        print(combinations)
         for icomb, combination in enumerate(combinations):
             comb_rooms = np.concatenate(
                 [combination[i] for i in range(len(combination)) if kind[i] == "room"]

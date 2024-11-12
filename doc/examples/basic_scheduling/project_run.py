@@ -135,18 +135,16 @@ if not solver_final_status == "INFEASIBLE":
         activity.start = start_slot
         start_datetime = activity.start_datetime
         activity_alternative_ressources = activities_alternative_ressources[aid]
-        # print(activity_alternative_ressources)
         activity.allocated_rooms = []
         for existance, alt_rooms in activity_alternative_ressources["rooms"]:
             if solver.Value(existance) == 1:
                 for room in alt_rooms:
                     activity.allocated_rooms.append(room)
-                    # print(f"Activity {aid} ({alabel}) starts at {start_slot} = {start_datetime} in room {room}")
+
         activity.allocated_teachers = []
         for existance, alt_teachers in activity_alternative_ressources["teachers"]:
             if solver.Value(existance) == 1:
                 for teacher in alt_teachers:
-                    # print(f"Activity {aid} ({alabel}) starts at {start_slot} = {start_datetime} with teacher {teacher}")
                     activity.allocated_teachers.append(teacher)
         allocated_rooms_labels = [r.label for r in activity.allocated_rooms]
         allocated_teachers_labels = [t.full_name for t in activity.allocated_teachers]

@@ -41,21 +41,9 @@ engine = create_engine(setup["engine"], echo=False)
 Base.metadata.create_all(engine)
 session = Session(engine)
 project = session.execute(select(Project)).scalars().first()
-activities = session.execute(select(Activity)).scalars().all()
-activity_groups = session.execute(select(ActivityGroup)).scalars().all()
-courses = session.execute(select(Course)).scalars().all()
-static_activities = session.execute(select(StaticActivity)).scalars().all()
-students_groups = session.execute(select(StudentsGroup)).scalars().all()
-atomic_students = session.execute(select(AtomicStudent)).scalars().all()
-rooms = session.execute(select(Room)).scalars().all()
-teachers = session.execute(select(Teacher)).scalars().all()
-activity_kinds = session.execute(select(ActivityKind)).scalars().all()
-starts_after_constraints = (
-    session.execute(select(StartsAfterConstraint)).scalars().all()
-)
 
 
-for course in courses:
+for course in project.courses:
     G = course.activity_graph
     print(f"Course: {course.label}")
     graph_degrees_df, cycles = analyze_contraints_graph(G)

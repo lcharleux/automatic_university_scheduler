@@ -1,8 +1,14 @@
+clean:
+    python project_clean.py
+
 load:
-    python sqla_loader.py
+    python project_load.py
 
 run:
-    python sqla_run.py
+    python project_run.py
 
 analyze:
-    python sqla_analyze.py
+    python project_analyze.py
+
+postprocess:
+    python project_postprocess.py
