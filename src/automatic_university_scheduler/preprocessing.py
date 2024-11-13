@@ -284,6 +284,7 @@ def create_activities_and_rooms(
     session,
     project,
     courses_data,
+    room_pools,
     teachers,
     managers,
     planners,
@@ -302,9 +303,14 @@ def create_activities_and_rooms(
     for course_label, course_data in courses_data.items():
         activities = course_data["activities"]
         for activity, activity_data in activities.items():
-            room_pool = activity_data["rooms"]["pool"]
+            activity_room_pool = activity_data["rooms"]["pool"]
+            if type(activity_room_pool) == str:
+                room_pool = room_pools[activity_room_pool]
+            else:
+                room_pool = activity_data["rooms"]["pool"]
             teacher_pool = activity_data["teachers"]["pool"]
             rooms_labels.update(room_pool)
+            activity_data["rooms"]["pool"] = room_pool
 
     for label in sorted(list(rooms_labels)):
         rooms[label] = create_instance(

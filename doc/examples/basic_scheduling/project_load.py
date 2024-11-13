@@ -104,6 +104,7 @@ planners = create_planners(session, project, model["planners"])
     session,
     project,
     model["courses"],
+    room_pools=model["aliases"]["room_pools"],
     teachers=teachers,
     managers=managers,
     planners=planners,
