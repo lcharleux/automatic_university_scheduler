@@ -22,3 +22,4 @@ dependencies:
   - just
   - pip:
     - ortools
+    - mermaid-py
