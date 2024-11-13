@@ -543,10 +543,10 @@ class Course(Base):
 
 class ActivityGroup(Base):
     __tablename__ = "activity_group"
-    _unique_columns = ["label", "course"]
+    _unique_columns = ["label", "course_id"]
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    label: Mapped[str] = mapped_column(String(30), unique=True)
+    label: Mapped[str] = mapped_column(String(30), unique=False)
     course_id: Mapped[int] = mapped_column(ForeignKey("course.id"), nullable=False)
     course: Mapped["Course"] = relationship(back_populates="activity_groups")
     project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
@@ -565,6 +565,8 @@ class ActivityGroup(Base):
         foreign_keys="StartsAfterConstraint.to_activity_group_id",
         back_populates="to_activity_group",
     )
+
+    __table_args__ = (UniqueConstraint(*_unique_columns, name="_unique_activity"),)
 
     def __repr__(self) -> str:
         name = self.__class__.__name__
