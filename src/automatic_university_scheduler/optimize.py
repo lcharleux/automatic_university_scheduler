@@ -16,9 +16,6 @@ def absolute_week_duration_deviation(
     students_groups_ids = [g.id for g in project.atomic_students]
     week_duration = {gid: [[] for i in range(max_weeks)] for gid in students_groups_ids}
     total_activities_duration = {gid: 0 for gid in students_groups_ids}
-    spw = project.time_slots_per_week
-    spd = project.time_slots_per_day
-    week_structure = project.week_structure
     for aid, start in activities_starts.items():
         week = model.NewIntVar(0, max_weeks, "makespan")
         model.AddDivisionEquality(week, start, time_slots_per_week)
@@ -131,16 +128,15 @@ def create_activities_variables(model, project):
     horizon = project.horizon
 
     for activity in activities:
-        label = activity.label
         aid = activity.id
         said = str(aid).zfill(4)
         start = model.NewIntVar(0, horizon, f"start_{said}")
         end = model.NewIntVar(0, horizon, f"end_{said}")
-        if activity.start != None:
+        if activity.start is not None:
             model.AddHint(start, activity.start)
-        if activity.earliest_start_slot != None:
+        if activity.earliest_start_slot is not None:
             model.Add(start >= activity.earliest_start_slot)
-        if activity.latest_start_slot != None:
+        if activity.latest_start_slot is not None:
             model.Add(start <= activity.latest_start_slot)
         duration = activity.duration
         # model.Add(end == start + duration) # overkill ? Enforced by IntervalVar : https://developers.google.com/optimization/reference/python/sat/python/cp_model#newintervalvar
@@ -165,13 +161,11 @@ def create_activities_variables(model, project):
         has_pre_allocated_teachers = len(pre_allocated_teachers) > 0
         room_pool = activity.room_pool
         room_pool_ids = [r.id for r in room_pool]
-        room_pool_dic = {r.id: r for r in room_pool}
         room_count = activity.room_count
         items.append(itertools.combinations(room_pool_ids, room_count))
         kind.append("room")
         teacher_pool = activity.teacher_pool
         teacher_pool_ids = [t.id for t in teacher_pool]
-        teacher_pool_dic = {t.id: t for t in teacher_pool}
         teacher_count = activity.teacher_count
         items.append(itertools.combinations(teacher_pool_ids, teacher_count))
         kind.append("teacher")
@@ -233,10 +227,10 @@ def create_activities_variables(model, project):
         for from_id, to_id in itertools.product(from_activites_ids, to_activities_ids):
             from_end = activities_ends[from_id]
             to_start = activities_ends[to_id]
-            if min_offset != None:
+            if min_offset is not None:
                 model.Add(to_start >= from_end + min_offset)
-            if max_offset != None:
-                model.Add(to_start <= from_end + min_offset)
+            if max_offset is not None:
+                model.Add(to_start <= from_end + max_offset)
 
     # NO OVERLAP
     for teacher, intervals in teacher_intervals.items():
@@ -299,9 +293,8 @@ def create_static_activities_overlap_constraints(
         end = static_activity.end
         duration = static_activity.duration
         aid = static_activity.id
-        said = str(aid).zfill(4)
         interval = model.NewIntervalVar(start, duration, end, f"static_activity_{aid}")
-        if static_activity.students != None:
+        if static_activity.students is not None:
             for atomic_student in static_activity.students.students:
                 atomic_students_static_intervals[atomic_student.id].append(interval)
         for teacher in static_activity.allocated_teachers:
@@ -334,7 +327,6 @@ def create_static_activities_overlap_constraints(
 
 
 def create_weekly_unavailability_constraints(project, model, atomic_students_intervals):
-    origin = project.origin_datetime
     origin_monday = project.setup["ORIGIN_MONDAY"]
     origin_monday_slot = project.datetime_to_slot(origin_monday, round="floor")
     max_weeks = project.setup["MAX_WEEKS"]
@@ -343,7 +335,6 @@ def create_weekly_unavailability_constraints(project, model, atomic_students_int
 
     weekly_unavailable_intervals = []
     weekly_unavailable_slots = (project.week_structure.T.flatten() == 0) * 1.0
-    weekly_unavailable_slots_intervals = []
 
     wusl, nlab = ndimage.label(weekly_unavailable_slots)
     wusl2 = [

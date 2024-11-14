@@ -469,6 +469,7 @@ courses:
           activities: [TD1],
           start_after: [CM1],
           min_offset: "1d",
+          max_offset: "14d",
         }
       - {
           kind: succession,
