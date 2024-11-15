@@ -16,7 +16,7 @@ $TITLE
 </h1>
     <pre class="mermaid">
     flowchart TB
-    $GRAPH
+$GRAPH
     </pre>
     <script type="module">
     import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@9/dist/mermaid.esm.min.mjs';
@@ -64,32 +64,27 @@ def graph_to_mermaid(graph, path, title="Constraints Graph", format="html") -> s
     Converts YAML constraint model to Mermaid graph.
     """
     text_constraints = ""
+    for node in graph.nodes:
+        text_constraints += f"        {node}\n"
     for edge in graph.edges:
         start, end = edge
         edata = graph.edges[edge]
         offset = None
         min_offset = edata["min_offset"]
         max_offset = edata["max_offset"]
-        if min_offset != None or max_offset != None:
+        print(min_offset, max_offset)
+        if min_offset is not None or max_offset is not None:
             offset = ""
-            if min_offset != None:
+            if min_offset is not None:
                 offset += f"{min_offset} <= t"
             else:
                 min_offset = "*"
                 offset += f"{min_offset} <= t"
-            if max_offset != None:
+            if max_offset is not None:
                 offset += f" <= {max_offset}"
 
-        # for start in constraint["start_after"]:
-        #     if "CM" in start:
-        #         start += ":::CMclass"
-        #     if "TD" in start:
-        #         start += ":::TDclass"
-        #     if "TP" in start:
-        #         start += ":::TPclass"
-
         text_constraints += f"        {start} -->|{offset}| {end}\n"
-
+    text_constraints = text_constraints.strip()
     if format == "html":
         text_constraints = Template(_mermaid_flow_template_html).substitute(
             GRAPH=text_constraints, TITLE=title

@@ -521,23 +521,30 @@ class Course(Base):
     @property
     def activity_graph(self):
         G = nx.DiGraph()
+
         ag = self.activity_groups
+        # print(ag)
         project = self.project
         for group in ag:
-            l = group.label
-            G.add_node(l)
+            group_label = group.label
+            G.add_node(group_label)
+            print("group_label", group_label)
+        for group in ag:
+            group_label = group.label
             for sa in group.starts_after:
                 og = sa.to_activity_group
                 ol = og.label
-                G.add_edge(l, ol)
+                G.add_edge(group_label, ol)
                 min_offset_slots = sa.min_offset
                 max_offset_slots = sa.max_offset
                 min_offset = project.slots_to_duration(min_offset_slots)
                 max_offset = project.slots_to_duration(max_offset_slots)
-                G.edges[l, ol]["min_offset_slots"] = min_offset_slots
-                G.edges[l, ol]["max_offset_slots"] = max_offset_slots
-                G.edges[l, ol]["min_offset"] = min_offset
-                G.edges[l, ol]["max_offset"] = max_offset
+                print("min_offset", min_offset)
+                print("max_offset", max_offset)
+                G.edges[group_label, ol]["min_offset_slots"] = min_offset_slots
+                G.edges[group_label, ol]["max_offset_slots"] = max_offset_slots
+                G.edges[group_label, ol]["min_offset"] = min_offset
+                G.edges[group_label, ol]["max_offset"] = max_offset
         return G
 
 
