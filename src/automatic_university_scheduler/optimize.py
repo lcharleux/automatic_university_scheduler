@@ -226,7 +226,7 @@ def create_activities_variables(model, project):
         max_offset = starts_after.max_offset
         for from_id, to_id in itertools.product(from_activites_ids, to_activities_ids):
             from_end = activities_ends[from_id]
-            to_start = activities_ends[to_id]
+            to_start = activities_starts[to_id]
             if min_offset is not None:
                 model.Add(to_start >= from_end + min_offset)
             if max_offset is not None:

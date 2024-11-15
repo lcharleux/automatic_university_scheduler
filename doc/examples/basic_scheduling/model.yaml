@@ -519,8 +519,8 @@ courses:
           kind: succession,
           activities: [TD3],
           start_after: [CM3],
-          min_offset: "1d",
-          max_offset: null,
+          min_offset: "15m",
+          max_offset: "2d",
         }
       - {
           kind: succession,
