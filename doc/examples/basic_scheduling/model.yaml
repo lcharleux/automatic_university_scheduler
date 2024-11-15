@@ -489,16 +489,16 @@ courses:
         students: "MECA-3"
         # earliest_start: "2024-W38-3 12:00"
         # latest_start: "2024-W38-5 18:00"
-      PROJ2:
-        kind: PROJ
-        duration: 6
-        teachers:
-          pool: [BB, AA]
-          count: 2
-        rooms:
-          pool: room_MECA-FISE-3
-          count: 0
-        students: "MECA-3"
+      # PROJ2:
+      #   kind: PROJ
+      #   duration: 6
+      #   teachers:
+      #     pool: [BB, AA]
+      #     count: 2
+      #   rooms:
+      #     pool: room_MECA-FISE-3
+      #     count: 0
+      #   students: "MECA-3"
 
     inner_activity_groups:
       CM1: [CM1]
@@ -509,7 +509,7 @@ courses:
       TD3: [TD3-A, TD3-B, TD3-C]
       TP1: [TP1-A1, TP1-A2, TP1-B1, TP1-B2, TP1-C1, TP1-C2]
       PROJ1: [PROJ1]
-      PROJ2: [PROJ2]
+      # PROJ2: [PROJ2]
 
     constraints:
       - {

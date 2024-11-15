@@ -528,7 +528,6 @@ class Course(Base):
         for group in ag:
             group_label = group.label
             G.add_node(group_label)
-            print("group_label", group_label)
         for group in ag:
             group_label = group.label
             for sa in group.starts_after:
@@ -539,8 +538,6 @@ class Course(Base):
                 max_offset_slots = sa.max_offset
                 min_offset = project.slots_to_duration(min_offset_slots)
                 max_offset = project.slots_to_duration(max_offset_slots)
-                print("min_offset", min_offset)
-                print("max_offset", max_offset)
                 G.edges[group_label, ol]["min_offset_slots"] = min_offset_slots
                 G.edges[group_label, ol]["max_offset_slots"] = max_offset_slots
                 G.edges[group_label, ol]["min_offset"] = min_offset

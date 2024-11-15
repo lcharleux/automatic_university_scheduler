@@ -72,7 +72,6 @@ def graph_to_mermaid(graph, path, title="Constraints Graph", format="html") -> s
         offset = None
         min_offset = edata["min_offset"]
         max_offset = edata["max_offset"]
-        print(min_offset, max_offset)
         if min_offset is not None or max_offset is not None:
             offset = ""
             if min_offset is not None:
