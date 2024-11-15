@@ -132,6 +132,7 @@ if not solver_final_status == "INFEASIBLE":
         start_slot = solver.Value(start)
         alabel = activities_dic[aid].label
         activity = activities_dic[aid]
+        clabel = activity.course.label
         activity.start = start_slot
         start_datetime = activity.start_datetime
         activity_alternative_ressources = activities_alternative_ressources[aid]
@@ -149,7 +150,7 @@ if not solver_final_status == "INFEASIBLE":
         allocated_rooms_labels = [r.label for r in activity.allocated_rooms]
         allocated_teachers_labels = [t.full_name for t in activity.allocated_teachers]
         print(
-            f"Activity {aid} ({alabel}) starts at {start_slot} = {start_datetime} in rooms {allocated_rooms_labels} with teachers {allocated_teachers_labels}"
+            f"Activity {aid} ({clabel}/{alabel}) starts at {start_slot} = {start_datetime} in rooms {allocated_rooms_labels} with teachers {allocated_teachers_labels}"
         )
 
         session.commit()

@@ -298,6 +298,7 @@ def create_activities_and_rooms(
     activities_dic = {}
     activities_groups_dic = {}
     starts_after_constraint_dic = {}
+    courses_dic = {}
     rooms_labels = set()
 
     for course_label, course_data in courses_data.items():
@@ -329,6 +330,7 @@ def create_activities_and_rooms(
             planner=planner,
             commit=True,
         )
+        courses_dic[course_label] = course
         activities = course_data["activities"]
         for activity_label, activity_data in activities.items():
             activity_args = {
@@ -368,9 +370,14 @@ def create_activities_and_rooms(
                 session, Activity, **activity_args, commit=True
             )
             activities_dic[(course_label, activity_label)] = new_activity
+
+    for course_label, course_data in courses_data.items():
+        course = courses_dic[course_label]
+        manager = managers[course_data["manager"]]
+        planner = planners[course_data["planner"]]
         for group_label, group_data in course_data["inner_activity_groups"].items():
 
-            gra = [activities_dic[(course_label, l)] for l in group_data]
+            gra = [activities_dic[(course_label, lab)] for lab in group_data]
             activity_group_kwargs = {
                 "label": group_label,
                 "activities": gra,
@@ -381,6 +388,23 @@ def create_activities_and_rooms(
                 session, ActivityGroup, **activity_group_kwargs, commit=True
             )
             activities_groups_dic[(course_label, group_label)] = new_activity_group
+
+        if "foreign_activity_groups" in course_data.keys():
+            for group_label, group_data in course_data[
+                "foreign_activity_groups"
+            ].items():
+                gra = [activities_dic[(clab, lab)] for clab, lab in group_data]
+                activity_group_kwargs = {
+                    "label": group_label,
+                    "activities": gra,
+                    "project": project,
+                    "course": course,
+                }
+                new_activity_group = create_instance(
+                    session, ActivityGroup, **activity_group_kwargs, commit=True
+                )
+                activities_groups_dic[(course_label, group_label)] = new_activity_group
+
         for constraints_data in course_data["constraints"]:
             if constraints_data["kind"] == "succession":
                 from_act_groups_labels = constraints_data["start_after"]

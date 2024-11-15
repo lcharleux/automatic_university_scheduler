@@ -231,6 +231,47 @@ students:
           }
 
 courses:
+  MATH001:
+    manager: AA
+    planner: LC
+    color: blue
+    activities:
+       # CM
+      CM1:
+        kind: CM
+        duration: "1h-30m"
+        teachers:
+          pool: [AA]
+          count: 1
+        rooms:
+          pool: room_MECA-FISE-3
+          count: 1
+        students: "MECA-3"
+        earliest_start: "2024-W37-5 14:00"
+        latest_start: "2024-W37-5 18:00"
+    inner_activity_groups:
+      CM1: [CM1]
+
+    foreign_activity_groups:
+      MATE001_CM1: [[MATE001, CM1]]
+      MATE001_CM2: [[MATE001, CM2]]
+
+    constraints:
+      - {
+          kind: succession,
+          activities: [CM1],
+          start_after: [MATE001_CM1],
+          min_offset: 0,
+          max_offset: null,
+        }
+      - {
+          kind: succession,
+          activities: [MATE001_CM2],
+          start_after: [CM1],
+          min_offset: 0,
+          max_offset: null,
+        }
+
   MATE001:
     color: pink
     manager: AA
@@ -458,10 +499,6 @@ courses:
       TD3: [TD3-A, TD3-B, TD3-C]
       TP1: [TP1-A1, TP1-A2, TP1-B1, TP1-B2, TP1-C1, TP1-C2]
       PROJ1: [PROJ1]
-
-
-    foreign_activity_groups:
-      MECA653_CM1: [[MECA653, CM1]]
 
     constraints:
       - {
