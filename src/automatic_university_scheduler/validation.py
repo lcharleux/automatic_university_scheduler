@@ -75,10 +75,10 @@ def graph_to_mermaid(graph, path, title="Constraints Graph", format="html") -> s
         if min_offset is not None or max_offset is not None:
             offset = ""
             if min_offset is not None:
-                offset += f"{min_offset} <= t"
+                offset += f"{min_offset} <= \u0394t"
             else:
                 min_offset = "*"
-                offset += f"{min_offset} <= t"
+                offset += f"{min_offset} <= \u0394t"
             if max_offset is not None:
                 offset += f" <= {max_offset}"
 
