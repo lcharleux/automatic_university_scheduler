@@ -65,7 +65,11 @@ def graph_to_mermaid(graph, path, title="Constraints Graph", format="html") -> s
     """
     text_constraints = ""
     for node in graph.nodes:
-        if 'CM' in node:
+        if '-s' in node:
+            text_constraints += f"        {node}[/{node}\]:::SPclass\n"
+        elif '-e' in node:
+            text_constraints += f"        {node}[\{node}/]:::SPclass\n"
+        elif 'CM' in node:
             text_constraints += f"        {node}:::CMclass\n"
         elif 'TD' in node:
             text_constraints += f"        {node}:::TDclass\n"
@@ -75,6 +79,7 @@ def graph_to_mermaid(graph, path, title="Constraints Graph", format="html") -> s
             text_constraints += f"        {node}:::EXclass\n"
         else:
             text_constraints += f"        {node}\n"
+    text_constraints += "        classDef SPclass fill:#c5d4c5, stroke: #c5d4c5, color:#fff\n"
     text_constraints += "        classDef CMclass fill:#f96\n"
     text_constraints += "        classDef TDclass fill:#f69\n"
     text_constraints += "        classDef TPclass fill:#69f\n"
