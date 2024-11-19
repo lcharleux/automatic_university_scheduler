@@ -153,11 +153,15 @@ def create_students(session, project, students_data):
             unvailable_data = group_data["unavailable"]
             for constraint in unvailable_data:
                 if constraint["kind"] == "datetime":
+                    if label in constraint.keys():
+                        label = constraint["label"]
+                    else:  # DEFAULT LABEL
+                        label = "students unavailable"
                     static_activity_kwargs = {
                         "project": project,
                         "kind": "students unavailable",
                         "students": group,
-                        "label": "unavailable",
+                        "label": label,
                     }
                     static_activities_kwargs = process_constraint_static_activity(
                         constraint=constraint,
