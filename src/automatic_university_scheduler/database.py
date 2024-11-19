@@ -389,10 +389,6 @@ class StaticActivity(Base):
                 [t.full_name for t in self.allocated_teachers]
             ),
             "allocated_rooms": ", ".join([r.label for r in self.allocated_rooms]),
-            "teacher_pool": ", ".join([t.full_name for t in self.teacher_pool]),
-            "teacher_count": self.teacher_count,
-            "room_pool": ", ".join([r.label for r in self.room_pool]),
-            "room_count": self.room_count,
         }
         return pd.Series(out)
 
