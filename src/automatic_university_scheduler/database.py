@@ -358,6 +358,40 @@ class StaticActivity(Base):
     def end_datetime(self):
         return self.project.slots_to_datetime(self.end)
 
+    @property
+    def planification_to_series(self):
+        start = self.start_datetime
+        end = self.end_datetime
+        start_isocalendar = start.isocalendar()
+        week = start_isocalendar.week
+        weekday = start_isocalendar.weekday
+        year = start_isocalendar.year
+        start_clock = f"{start.hour:02d}:{start.minute:02d}"
+        end_clock = f"{end.hour:02d}:{end.minute:02d}"
+        duration = self.duration_timedelta.to_str()
+        out = {
+            "id": self.id,
+            "label": self.label,
+            "kind": self.kind.label,
+            "start_slot": self.start,
+            "year": year,
+            "week": week,
+            "weekday": weekday,
+            "start": start_clock,
+            "end": end_clock,
+            "duration": duration,
+            "students": self.students.label,
+            "allocated_teachers": ", ".join(
+                [t.full_name for t in self.allocated_teachers]
+            ),
+            "allocated_rooms": ", ".join([r.label for r in self.allocated_rooms]),
+            "teacher_pool": ", ".join([t.full_name for t in self.teacher_pool]),
+            "teacher_count": self.teacher_count,
+            "room_pool": ", ".join([r.label for r in self.room_pool]),
+            "room_count": self.room_count,
+        }
+        return pd.Series(out)
+
 
 class Activity(Base):
     __tablename__ = "activity"
@@ -470,6 +504,7 @@ class Activity(Base):
             "label": self.label,
             "kind": self.kind.label,
             "start_slot": self.start,
+            "year": year,
             "week": week,
             "weekday": weekday,
             "start": start_clock,
