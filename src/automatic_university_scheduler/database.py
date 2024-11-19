@@ -376,7 +376,7 @@ class StaticActivity(Base):
         out = {
             "id": self.id,
             "label": self.label,
-            "kind": self.kind.label,
+            "kind": self.kind,
             "start_slot": self.start,
             "year": year,
             "week": week,
