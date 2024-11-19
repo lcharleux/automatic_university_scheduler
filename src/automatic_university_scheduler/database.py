@@ -359,6 +359,10 @@ class StaticActivity(Base):
         return self.project.slots_to_datetime(self.end)
 
     @property
+    def duration_timedelta(self):
+        return self.project.slots_to_duration(self.duration)
+
+    @property
     def planification_to_series(self):
         start = self.start_datetime
         end = self.end_datetime
