@@ -373,6 +373,10 @@ class StaticActivity(Base):
         start_clock = f"{start.hour:02d}:{start.minute:02d}"
         end_clock = f"{end.hour:02d}:{end.minute:02d}"
         duration = self.duration_timedelta.to_str()
+        if self.students is not None:
+            students = self.students.label
+        else:
+            students = None
         out = {
             "id": self.id,
             "label": self.label,
@@ -384,7 +388,7 @@ class StaticActivity(Base):
             "start": start_clock,
             "end": end_clock,
             "duration": duration,
-            "students": self.students.label,
+            "students": students,
             "allocated_teachers": ", ".join(
                 [t.full_name for t in self.allocated_teachers]
             ),
