@@ -16,7 +16,7 @@ $TITLE
 </h1>
     <pre class="mermaid">
     flowchart TB
-$GRAPH
+    $GRAPH
     </pre>
     <script type="module">
     import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@9/dist/mermaid.esm.min.mjs';
@@ -65,7 +65,25 @@ def graph_to_mermaid(graph, path, title="Constraints Graph", format="html") -> s
     """
     text_constraints = ""
     for node in graph.nodes:
-        text_constraints += f"        {node}\n"
+        if '-s' in node:
+            text_constraints += f"        {node}[/{node}\]:::SPclass\n"
+        elif '-e' in node:
+            text_constraints += f"        {node}[\{node}/]:::SPclass\n"
+        elif 'CM' in node:
+            text_constraints += f"        {node}:::CMclass\n"
+        elif 'TD' in node:
+            text_constraints += f"        {node}:::TDclass\n"
+        elif 'TP' in node:
+            text_constraints += f"        {node}:::TPclass\n"
+        elif ('CT' in node) or ('CI' in node) or ('ET' in node) or('CC' in node):
+            text_constraints += f"        {node}:::EXclass\n"
+        else:
+            text_constraints += f"        {node}\n"
+    text_constraints += "        classDef SPclass fill:#c5d4c5, stroke: #c5d4c5, color:#fff\n"
+    text_constraints += "        classDef CMclass fill:#f96\n"
+    text_constraints += "        classDef TDclass fill:#f69\n"
+    text_constraints += "        classDef TPclass fill:#69f\n"
+    text_constraints += "        classDef EXclass fill:#6f9\n"
     for edge in graph.edges:
         start, end = edge
         edata = graph.edges[edge]
@@ -83,6 +101,7 @@ def graph_to_mermaid(graph, path, title="Constraints Graph", format="html") -> s
                 offset += f" <= {max_offset}"
 
         text_constraints += f"        {start} -->|{offset}| {end}\n"
+    
     text_constraints = text_constraints.strip()
     if format == "html":
         text_constraints = Template(_mermaid_flow_template_html).substitute(
