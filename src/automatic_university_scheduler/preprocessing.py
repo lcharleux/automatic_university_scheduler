@@ -602,7 +602,7 @@ def extract_constraints_from_table(
             end_slot = project.datetime_to_slot(end_datetime, round="ceil")
             duration = end_slot - start_slot
             kwargs = {
-                "kind": "Imported",
+                "kind": "imported",
                 "project": project,
                 "start": start_slot,
                 "duration": duration,
