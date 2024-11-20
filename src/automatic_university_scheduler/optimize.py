@@ -13,68 +13,82 @@ def absolute_week_duration_deviation(
     max_weeks = setup["MAX_WEEKS"]
     time_slots_per_week = setup["TIME_SLOTS_PER_WEEK"]
     horizon = setup["HORIZON"]
+    origin_monday = project.setup["ORIGIN_MONDAY"]
+    origin_monday_slot = project.datetime_to_slot(origin_monday)
     students_groups_ids = [g.id for g in project.atomic_students]
-    week_duration = {gid: [[] for i in range(max_weeks)] for gid in students_groups_ids}
-    total_activities_duration = {gid: 0 for gid in students_groups_ids}
+    students_week_duration_dic = {
+        gid: [[] for i in range(max_weeks)] for gid in students_groups_ids
+    }
+    activities_students_dic = {}
+    for activity in project.activities:
+        aid = activity.id
+        activities_students_dic[aid] = [s.id for s in activity.students.students]
+    total_activities_duration_per_group = {gid: 0 for gid in students_groups_ids}
     for aid, start in activities_starts.items():
-        week = model.NewIntVar(0, max_weeks, "makespan")
-        model.AddDivisionEquality(week, start, time_slots_per_week)
-        duration = activities_durations[aid]
-        for i in range(max_weeks):
-            is_week = model.NewBoolVar("is_week")
-            model.Add(week == i).OnlyEnforceIf(is_week)
-            model.Add(week != i).OnlyEnforceIf(is_week.Not())
-            duration_on_week = model.NewIntVar(
+        activity_week_number = model.NewIntVar(0, max_weeks, f"activity_{aid}_week")
+        model.AddDivisionEquality(
+            activity_week_number, start - origin_monday_slot, time_slots_per_week
+        )
+        activity_duration = activities_durations[aid]
+        for student in activity.students.students:
+            gid = student.id
+            total_activities_duration_per_group[gid] += activity_duration
+        for week_id in range(max_weeks):
+            activity_is_on_week = model.NewBoolVar(f"is_week_{week_id}_{aid}")
+            model.Add(activity_week_number == week_id).OnlyEnforceIf(
+                activity_is_on_week
+            )
+            model.Add(activity_week_number != week_id).OnlyEnforceIf(
+                activity_is_on_week.Not()
+            )
+            activity_duration_on_week = model.NewIntVar(
                 0, time_slots_per_week, "duration_on_week"
             )
-            model.Add(duration_on_week == duration).OnlyEnforceIf(is_week)
-            model.Add(duration_on_week == 0).OnlyEnforceIf(is_week.Not())
-            for gid in students_groups_ids:
-                week_duration[gid][i].append(duration_on_week)
-    week_duration_curated = {}
-    for group, wd in week_duration.items():
-        l = sum([len(d) for d in wd])
-        if l != 0:
-            week_duration_curated[group] = wd
+            model.Add(activity_duration_on_week == activity_duration).OnlyEnforceIf(
+                activity_is_on_week
+            )
+            model.Add(activity_duration_on_week == 0).OnlyEnforceIf(
+                activity_is_on_week.Not()
+            )
+            for student in activity.students.students:
+                gid = student.id
+                students_week_duration_dic[gid][week_id].append(
+                    activity_duration_on_week
+                )
+    # REMOVE EMPTY GROUPS
+    students_week_duration_dic_curated = {}
+    for group, wd in students_week_duration_dic.items():
+        curated_duration = sum([len(d) for d in wd])
+        if curated_duration != 0:
+            students_week_duration_dic_curated[group] = wd
 
-    week_duration_sums = []
     week_duration_residuals = []
-    for group, wd in week_duration_curated.items():
-        total_duration_per_group = 0
-        for nw, w in enumerate(wd):
-            if len(w) != 0:
-                week_duration_sums.append(sum(w))
-                total_duration_per_group += sum(w)
-            else:
-                week_duration_sums.append(0)
-        mean_week_duration = model.NewIntVar(
-            0, time_slots_per_week, f"mean_week_duration_{group}"
+    for group, group_week_durations in students_week_duration_dic_curated.items():
+        mean_week_duration_per_group = int(
+            round(total_activities_duration_per_group[group] / max_weeks)
         )
-        model.AddDivisionEquality(
-            mean_week_duration, total_activities_duration[group], len(wd)
-        )
-        for w in wd:
+        for w in group_week_durations:
             week_duration = sum(w)
             abs_week_residual = model.NewIntVar(
                 0, time_slots_per_week, "mean_week_duration"
             )
             positive_residual = model.NewBoolVar("mean_week_duration")
-            model.Add(week_duration - mean_week_duration >= 0).OnlyEnforceIf(
+            model.Add(week_duration - mean_week_duration_per_group >= 0).OnlyEnforceIf(
                 positive_residual
             )
-            model.Add(week_duration - mean_week_duration < 0).OnlyEnforceIf(
+            model.Add(week_duration - mean_week_duration_per_group < 0).OnlyEnforceIf(
                 positive_residual.Not()
             )
             model.Add(
-                abs_week_residual == week_duration - mean_week_duration
+                abs_week_residual == week_duration - mean_week_duration_per_group
             ).OnlyEnforceIf(positive_residual)
             model.Add(
-                abs_week_residual == mean_week_duration - week_duration
+                abs_week_residual == mean_week_duration_per_group - week_duration
             ).OnlyEnforceIf(positive_residual.Not())
             week_duration_residuals.append(abs_week_residual)
-    value = model.NewIntVar(0, horizon, "makespan")
-    model.Add(value == sum(week_duration_residuals))
-    return value
+    cost_value = model.NewIntVar(0, horizon, "makespan")
+    model.Add(cost_value == sum(week_duration_residuals))
+    return cost_value
 
 
 class SolutionPrinter(cp_model.CpSolverSolutionCallback):
