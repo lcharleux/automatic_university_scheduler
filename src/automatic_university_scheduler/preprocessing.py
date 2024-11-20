@@ -573,13 +573,13 @@ def extract_constraints_from_table(
             data[k] = f(raw_data)
         data = pd.DataFrame(data)
 
-        constraints = {}
+        # constraints = {}
         static_activities_kwargs = []
-        ignored_ressources = {"teachers": [], "rooms": [], "students": []}
-        for kind in ["teachers", "rooms", "students"]:
-            constraints[kind] = {
-                r: {"unavailable": []} for r in tracked_ressources[kind]
-            }
+        ignored_ressources = {"teachers": set(), "rooms": set(), "students": set()}
+        # for kind in ["teachers", "rooms", "students"]:
+        #     constraints[kind] = {
+        #         r: {"unavailable": []} for r in tracked_ressources[kind]
+        #     }
 
         for index, row in data.iterrows():
             start_time = TIME_SLOT_DURATION * row["from_dayslot"]
@@ -596,15 +596,10 @@ def extract_constraints_from_table(
             end_time_minutes = int((end_time_seconds - end_time_hours * 3600) // 60)
             end_str = f"{row['year']}-W{ str(row['week']).zfill(2)}-{row['weekday']} {str(end_time_hours).zfill(2) }:{str(end_time_minutes).zfill(2)}"
             end_datetime = DT.from_str(end_str)
-            constraint = {
-                "kind": "datetime",
-                "start": start_datetime.to_str(),
-                "end": end_datetime.to_str(),
-                "label": row["description"],
-            }
             start_slot = project.datetime_to_slot(start_datetime, round="floor")
             end_slot = project.datetime_to_slot(end_datetime, round="ceil")
             duration = end_slot - start_slot
+            # BASIC STATIC ACTIVITY KWARGS
             kwargs = {
                 "kind": "imported",
                 "project": project,
@@ -614,47 +609,60 @@ def extract_constraints_from_table(
                 "allocated_rooms": [],
                 "allocated_teachers": [],
             }
-            # OLD VERSION
-            for kind in ["teachers", "students", "rooms"]:
-                if kind == "students":
-                    if row[kind] != "":
-                        schools_names = row["school"]
-                        if school in schools_names:
-                            row_data = row[kind]
-                        else:
-                            row_data = ""
+            # RESSOURCES
+            # 1. STUDENTS
+            students_ressources = []
+            students_str = None
+            if row["students"] != "":
+                schools_names = row["school"]
+                if school in schools_names:
+                    students_str = row["students"]
+            if students_str is not None:
+                students_list = [r.strip() for r in students_str.split(",")]
+                for student in students_list:
+                    if student in tracked_ressources["students"]:
+                        students_ressources.append(ressources_dic["students"][student])
                     else:
-                        row_data = ""
+                        ignored_ressources["students"].add(student)
+            N_students = len(students_ressources)
+            # 2. TEACHERS
+            teachers_ressources = []
+            teachers_str = row["teachers"]
+            teachers_list = [r.strip() for r in teachers_str.split(",")]
+            for teacher in teachers_list:
+                if teacher in tracked_ressources["teachers"]:
+                    teachers_ressources.append(ressources_dic["teachers"][teacher])
                 else:
-                    row_data = row[kind]
-
-                if row_data != "":
-                    ressources = [r.strip() for r in row_data.split(",")]
-                    for ressource in ressources:
-                        if ressource in tracked_ressources[kind]:
-                            constraints[kind][ressource]["unavailable"].append(
-                                constraint
-                            )
-                            if kind == "students":
-                                kwargs["students"] = ressources_dic[kind][ressource]
-                            elif kind == "teachers":
-                                kwargs["allocated_teachers"].append(
-                                    ressources_dic[kind][ressource]
-                                )
-                            elif kind == "rooms":
-                                kwargs["allocated_rooms"].append(
-                                    ressources_dic[kind][ressource]
-                                )
-                        else:
-                            ignored_ressources[kind].append(ressource)
-            static_activities_kwargs.append(kwargs)
-
+                    ignored_ressources["teachers"].add(teacher)
+            N_teachers = len(teachers_ressources)
+            # 3. ROOMS
+            rooms_ressources = []
+            rooms_str = row["rooms"]
+            rooms_list = [r.strip() for r in rooms_str.split(",")]
+            for room in rooms_list:
+                if room in tracked_ressources["rooms"]:
+                    rooms_ressources.append(ressources_dic["rooms"][room])
+                else:
+                    ignored_ressources["rooms"].add(room)
+            N_rooms = len(rooms_ressources)
+            # KWARGS PREPARATION
+            kwargs["allocated_rooms"] = rooms_ressources
+            kwargs["allocated_teachers"] = teachers_ressources
+            if N_students > 0 or N_teachers > 0 or N_rooms > 0:
+                if len(students_ressources) > 0:
+                    for student_group in students_ressources:
+                        kwargs2 = copy.copy(kwargs)
+                        kwargs2["students"] = student_group
+                        static_activities_kwargs.append(kwargs2)
+                else:
+                    kwargs2 = copy.copy(kwargs)
+                    kwargs2["students"] = None
+                    static_activities_kwargs.append(kwargs2)
         for kind in ["teachers", "rooms", "students"]:
             ignored_ressources[kind] = sorted(list(set(ignored_ressources[kind])))
 
-        return (
-            constraints,
-            ignored_ressources,
-            tracked_ressources,
-            static_activities_kwargs,
-        )
+    return (
+        ignored_ressources,
+        tracked_ressources,
+        static_activities_kwargs,
+    )
