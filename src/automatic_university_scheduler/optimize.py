@@ -102,7 +102,7 @@ class SolutionPrinter(cp_model.CpSolverSolutionCallback):
 
 def delete_imported_static_activities(session):
     existing_static_activities = (
-        session.query(StaticActivity).where(StaticActivity.kind == "Imported").all()
+        session.query(StaticActivity).where(StaticActivity.kind == "imported").all()
     )
     for static_activity in existing_static_activities:
         session.delete(static_activity)
