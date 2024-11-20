@@ -12,14 +12,10 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 import yaml
 from ortools.sat.python import cp_model
-import itertools
-import numpy as np
-from automatic_university_scheduler.datetimeutils import DateTime as DT
 from automatic_university_scheduler.utils import Messages, create_instance
 from automatic_university_scheduler.preprocessing import extract_constraints_from_table
 import time
 import pandas as pd
-from scipy import ndimage
 
 
 # SETUP
@@ -48,7 +44,6 @@ elif path.endswith(".csv"):
 else:
     raise ValueError("Invalid file format")
 (
-    constraints,
     ignored_ressources,
     tracked_ressources,
     static_activities_kwargs,
@@ -90,10 +85,10 @@ create_allowed_time_slots_per_kind(model, project, activities_starts)
 create_weekly_unavailability_constraints(project, model, atomic_students_intervals)
 
 # OBJECTIVE FUNCTION
-value = absolute_week_duration_deviation(
+cost_value = absolute_week_duration_deviation(
     project, model, activities_starts, activities_durations
 )
-model.Minimize(value)
+model.Minimize(cost_value)
 
 
 # CHECK MODEL INTEGRITY
@@ -109,7 +104,7 @@ else:
 # Solve model
 print("SOLVING ...")
 solver = cp_model.CpSolver()
-solver.parameters.max_time_in_seconds = 120  # 54000 = 15h
+solver.parameters.max_time_in_seconds = 150  # 54000 = 15h
 solver.parameters.num_search_workers = 8
 # solver.parameters.log_search_progress = True
 # solver.fix_variables_to_their_hinted_value = True
