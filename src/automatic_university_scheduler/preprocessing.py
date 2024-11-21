@@ -54,6 +54,7 @@ def load_setup(data):
         horizon_datetime, origin_datetime, out["TIME_SLOT_DURATION"], round="floor"
     )
     out["ACTIVITIES_KINDS"] = data["activity_kinds"]
+    out["SUCCESSION_CONSTRAINT_RELAXATION_FACTOR"] = data["succession_constraint_relaxation_factor"]
     return out
 
 

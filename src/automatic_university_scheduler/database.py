@@ -6,6 +6,7 @@ from sqlalchemy import (
     Integer,
     Boolean,
     UniqueConstraint,
+    Float,
     Column,
     Table,
     DateTime,
@@ -107,6 +108,7 @@ class Project(Base):
     origin_datetime: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False)
     horizon: Mapped[int] = mapped_column(Integer, nullable=False)
     time_slot_duration_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
+    succession_constraint_relaxation_factor: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
     activities: Mapped[List["Activity"]] = relationship(
         "Activity", back_populates="project"
     )

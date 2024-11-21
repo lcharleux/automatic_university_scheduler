@@ -129,6 +129,7 @@ def create_activities_variables(model, project):
     activities_ends = {}
     activities_durations = {}
     activities_alternative_ressources = {}
+    s_factor = project.succession_constraint_relaxation_factor
     atomic_students = project.atomic_students
     rooms = project.rooms
     teachers = project.teachers
@@ -237,7 +238,9 @@ def create_activities_variables(model, project):
         to_activities = starts_after.to_activity_group.activities
         to_activities_ids = [a.id for a in to_activities]
         min_offset = starts_after.min_offset
+        min_offset = int(min_offset / s_factor) if min_offset is not None else None
         max_offset = starts_after.max_offset
+        max_offset = int(max_offset * s_factor) if max_offset is not None else None
         for from_id, to_id in itertools.product(from_activites_ids, to_activities_ids):
             from_end = activities_ends[from_id]
             to_start = activities_starts[to_id]
