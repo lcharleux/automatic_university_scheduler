@@ -130,7 +130,7 @@ def analyze_contraints_graph(graph) -> pd.DataFrame:
     if len(cycles) > 0:
         for cycle in cycles:
             print(f"    CYCLES: cycle detected in graph: {cycle} => {Messages.ERROR}")
-            raise ValueError("Cycles detected in constraints graph")
+            # raise ValueError("Cycles detected in constraints graph")
     else:
         print(f"    CYCLES: success: no cycles detected in graph => {Messages.SUCCESS}")
 

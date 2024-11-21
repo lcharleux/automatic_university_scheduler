@@ -216,6 +216,7 @@ class Project(Base):
         out["TIME_SLOT_DURATION"] = time_slot_duration
         out["TIME_SLOTS_PER_WEEK"] = out["DAYS_PER_WEEK"] * out["TIME_SLOTS_PER_DAY"]
         out["HORIZON"] = horizon
+        out["SUCCESSION_CONSTRAINT_RELAXATION_FACTOR"] = self.succession_constraint_relaxation_factor
         return out
 
     def duration_to_slots(self, duration):
