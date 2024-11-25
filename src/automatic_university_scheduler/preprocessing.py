@@ -326,6 +326,7 @@ def create_activities_and_rooms(
     for course_label, course_data in courses_data.items():
         manager = managers[course_data["manager"]]
         planner = planners[course_data["planner"]]
+        wave = course_data["wave"]
         course = create_instance(
             session,
             Course,
@@ -333,6 +334,7 @@ def create_activities_and_rooms(
             project=project,
             manager=manager,
             planner=planner,
+            wave=wave,
             commit=True,
         )
         courses_dic[course_label] = course

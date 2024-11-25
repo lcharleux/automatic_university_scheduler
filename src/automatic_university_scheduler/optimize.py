@@ -123,7 +123,9 @@ def delete_imported_static_activities(session):
     session.commit()
 
 
-def create_activities_variables(model, project):
+def create_activities_variables(model, project, wave_dic = None):
+    if wave_dic is None:
+        wave_dic = {0:"dynamic"} # wave 0 is dynamic
     activities_intervals = {}
     activities_starts = {}
     activities_ends = {}
@@ -139,115 +141,145 @@ def create_activities_variables(model, project):
     room_intervals = {r.id: [] for r in rooms}
     teacher_intervals = {t.id: [] for t in teachers}
     activities = project.activities
+    # activities = []
+    # static_activities = []
+    # for course in project.courses:
+    #     wave = wave_dic[course.wave]
+    #     if wave == "dynamic":
+    #         for activity in course.activities:
+    #             activities.append(activity)
+    #     elif wave == "static":
+    #         for activity in course.static_activities:
+    #             static_activities.append(activity)
     starts_after_constraints = project.starts_after_constraints
     horizon = project.horizon
 
     for activity in activities:
-        aid = activity.id
-        said = str(aid).zfill(4)
-        start = model.NewIntVar(0, horizon, f"start_{said}")
-        end = model.NewIntVar(0, horizon, f"end_{said}")
-        if activity.start is not None:
-            model.AddHint(start, activity.start)
-        if activity.earliest_start_slot is not None:
-            model.Add(start >= activity.earliest_start_slot)
-        if activity.latest_start_slot is not None:
-            model.Add(start <= activity.latest_start_slot)
-        duration = activity.duration
-        # model.Add(end == start + duration) # overkill ? Enforced by IntervalVar : https://developers.google.com/optimization/reference/python/sat/python/cp_model#newintervalvar
-        interval = model.NewIntervalVar(start, duration, end, f"activity_{said}")
-        atomic_students_ids = [i.id for i in activity.students.students]
-        for sid in atomic_students_ids:
-            atomic_students_intervals[sid].append(interval)
-        activities_intervals[aid] = interval
-        activities_starts[aid] = start
-        activities_ends[aid] = end
-        activities_durations[aid] = duration
-        activities_alternative_ressources[aid] = {"rooms": [], "teachers": []}
-        # ALTERNATIVES
-        items = []
-        kind = []
-        alt_presences = []
-        pre_allocated_rooms = activity.allocated_rooms
-        pre_allocated_rooms_ids_set = set([r.id for r in pre_allocated_rooms])
-        has_pre_allocated_rooms = len(pre_allocated_rooms) > 0
-        pre_allocated_teachers = activity.allocated_teachers
-        pre_allocated_teachers_ids_set = set([t.id for t in pre_allocated_teachers])
-        has_pre_allocated_teachers = len(pre_allocated_teachers) > 0
-        room_pool = activity.room_pool
-        room_pool_ids = [r.id for r in room_pool]
-        room_count = activity.room_count
-        items.append(itertools.combinations(room_pool_ids, room_count))
-        kind.append("room")
-        teacher_pool = activity.teacher_pool
-        teacher_pool_ids = [t.id for t in teacher_pool]
-        teacher_count = activity.teacher_count
-        items.append(itertools.combinations(teacher_pool_ids, teacher_count))
-        kind.append("teacher")
-        combinations = [p for p in itertools.product(*items)]
-        for icomb, combination in enumerate(combinations):
-            comb_rooms = np.concatenate(
-                [combination[i] for i in range(len(combination)) if kind[i] == "room"]
-            )
-
-            comb_teachers = np.concatenate(
-                [
-                    combination[i]
-                    for i in range(len(combination))
-                    if kind[i] == "teacher"
-                ]
-            )
-            alt_presence = model.NewBoolVar(f"presence_{said}_alt{icomb}")
-            if has_pre_allocated_rooms and has_pre_allocated_teachers:
-                if (
-                    set(comb_rooms) == pre_allocated_rooms_ids_set
-                    and set(comb_teachers) == pre_allocated_teachers_ids_set
-                ):
-                    model.AddHint(alt_presence, 1)
+        activity_wave_status = wave_dic[activity.course.wave]
+        if not activity_wave_status == "ignore":
+            # print(f"Creating activity {activity.id} with status {activity_wave_status} course wave {activity.course.wave}" )
+            aid = activity.id
+            said = str(aid).zfill(4)
+            start = model.NewIntVar(0, horizon, f"start_{said}")
+            end = model.NewIntVar(0, horizon, f"end_{said}")
+            if activity_wave_status == "static":
+                if activity.start is not None:
+                    model.Add(start == activity.start)
                 else:
-                    model.AddHint(alt_presence, 0)
+                    raise ValueError(f"Activity {aid} is static but has no start value defined")
+            elif activity.start is not None:
+                model.AddHint(start, activity.start)
+            if activity.earliest_start_slot is not None:
+                model.Add(start >= activity.earliest_start_slot)
+            if activity.latest_start_slot is not None:
+                model.Add(start <= activity.latest_start_slot)
+            duration = activity.duration
+            # model.Add(end == start + duration) # overkill ? Enforced by IntervalVar : https://developers.google.com/optimization/reference/python/sat/python/cp_model#newintervalvar
+            interval = model.NewIntervalVar(start, duration, end, f"activity_{said}")
+            atomic_students_ids = [i.id for i in activity.students.students]
+            for sid in atomic_students_ids:
+                atomic_students_intervals[sid].append(interval)
+            activities_intervals[aid] = interval
+            activities_starts[aid] = start
+            activities_ends[aid] = end
+            activities_durations[aid] = duration
+            activities_alternative_ressources[aid] = {"rooms": [], "teachers": []}
+            # ALTERNATIVES
+            items = []
+            kind = []
+            alt_presences = []
+            pre_allocated_rooms = activity.allocated_rooms
+            pre_allocated_rooms_ids_set = set([r.id for r in pre_allocated_rooms])
+            has_pre_allocated_rooms = len(pre_allocated_rooms) > 0
+            pre_allocated_teachers = activity.allocated_teachers
+            pre_allocated_teachers_ids_set = set([t.id for t in pre_allocated_teachers])
+            has_pre_allocated_teachers = len(pre_allocated_teachers) > 0
+            room_pool = activity.room_pool
+            room_pool_ids = [r.id for r in room_pool]
+            room_count = activity.room_count
+            items.append(itertools.combinations(room_pool_ids, room_count))
+            kind.append("room")
+            teacher_pool = activity.teacher_pool
+            teacher_pool_ids = [t.id for t in teacher_pool]
+            teacher_count = activity.teacher_count
+            items.append(itertools.combinations(teacher_pool_ids, teacher_count))
+            kind.append("teacher")
+            combinations = [p for p in itertools.product(*items)]
+            for icomb, combination in enumerate(combinations):
+                comb_rooms = np.concatenate(
+                    [combination[i] for i in range(len(combination)) if kind[i] == "room"]
+                )
 
-            alt_start = model.NewIntVar(0, horizon, f"start_{said}_alt{icomb}")
-            alt_end = model.NewIntVar(0, horizon, f"end_{said}_alt{icomb}")
-            model.Add(alt_end == alt_start + duration)
-            alt_interval = model.NewOptionalIntervalVar(
-                alt_start,
-                duration,
-                alt_end,
-                alt_presence,
-                f"activity_{said}_alt{icomb}",
-            )
-            model.Add(start == alt_start).OnlyEnforceIf(alt_presence)
-            alt_presences.append(alt_presence)
-            for tid in comb_teachers:
-                teacher_intervals[tid].append(alt_interval)
-            for rid in comb_rooms:
-                room_intervals[rid].append(alt_interval)
-            activities_alternative_ressources[aid]["rooms"].append(
-                (alt_presence, [rooms_dic[i] for i in comb_rooms])
-            )
-            activities_alternative_ressources[aid]["teachers"].append(
-                (alt_presence, [teachers_dic[i] for i in comb_teachers])
-            )
-        model.AddExactlyOne(alt_presences)
+                comb_teachers = np.concatenate(
+                    [
+                        combination[i]
+                        for i in range(len(combination))
+                        if kind[i] == "teacher"
+                    ]
+                )
+                alt_presence = model.NewBoolVar(f"presence_{said}_alt{icomb}")
+                if has_pre_allocated_rooms and has_pre_allocated_teachers:
+                    if (
+                        set(comb_rooms) == pre_allocated_rooms_ids_set
+                        and set(comb_teachers) == pre_allocated_teachers_ids_set
+                    ):
+                        model.AddHint(alt_presence, 1)
+                    else:
+                        model.AddHint(alt_presence, 0)
+
+                alt_start = model.NewIntVar(0, horizon, f"start_{said}_alt{icomb}")
+                alt_end = model.NewIntVar(0, horizon, f"end_{said}_alt{icomb}")
+                model.Add(alt_end == alt_start + duration)
+                alt_interval = model.NewOptionalIntervalVar(
+                    alt_start,
+                    duration,
+                    alt_end,
+                    alt_presence,
+                    f"activity_{said}_alt{icomb}",
+                )
+                model.Add(start == alt_start).OnlyEnforceIf(alt_presence)
+                alt_presences.append(alt_presence)
+                for tid in comb_teachers:
+                    teacher_intervals[tid].append(alt_interval)
+                for rid in comb_rooms:
+                    room_intervals[rid].append(alt_interval)
+                activities_alternative_ressources[aid]["rooms"].append(
+                    (alt_presence, [rooms_dic[i] for i in comb_rooms])
+                )
+                activities_alternative_ressources[aid]["teachers"].append(
+                    (alt_presence, [teachers_dic[i] for i in comb_teachers])
+                )
+            model.AddExactlyOne(alt_presences)
 
     # START AFTER CONSTRAINTS
     for starts_after in starts_after_constraints:
         from_activities = starts_after.from_activity_group.activities
-        from_activites_ids = [a.id for a in from_activities]
+        # from_activites_ids = [a.id for a in from_activities]
+        from_activities_ids = []
+        for act in from_activities:
+            activity_wave_status = wave_dic[act.course.wave]
+            if activity_wave_status == "dynamic" or activity_wave_status == "static":
+                from_activities_ids.append(act.id)
+        
         to_activities = starts_after.to_activity_group.activities
-        to_activities_ids = [a.id for a in to_activities]
-        min_offset = starts_after.min_offset
-        min_offset = int(min_offset / s_factor) if min_offset is not None else None
-        max_offset = starts_after.max_offset
-        max_offset = int(max_offset * s_factor) if max_offset is not None else None
-        for from_id, to_id in itertools.product(from_activites_ids, to_activities_ids):
-            from_end = activities_ends[from_id]
-            to_start = activities_starts[to_id]
-            if min_offset is not None:
-                model.Add(to_start >= from_end + min_offset)
-            if max_offset is not None:
-                model.Add(to_start <= from_end + max_offset)
+        # to_activities_ids = [a.id for a in to_activities]
+        to_activities_ids = []
+        for act in to_activities:
+            activity_wave_status = wave_dic[act.course.wave]
+            if activity_wave_status == "dynamic" or activity_wave_status == "static":
+                to_activities_ids.append(act.id)
+        if  len(from_activities_ids) != 0 and len(to_activities_ids) != 0:
+            min_offset = starts_after.min_offset
+            min_offset = int(min_offset / s_factor) if min_offset is not None else None
+            max_offset = starts_after.max_offset
+            max_offset = int(max_offset * s_factor) if max_offset is not None else None
+            for from_id, to_id in itertools.product(from_activities_ids, to_activities_ids):
+                from_end = activities_ends[from_id]
+                to_start = activities_starts[to_id]
+                if min_offset is not None:
+                    model.Add(to_start >= from_end + min_offset)
+                if max_offset is not None:
+                    model.Add(to_start <= from_end + max_offset)
 
     # NO OVERLAP
     for teacher, intervals in teacher_intervals.items():
@@ -272,7 +304,9 @@ def create_activities_variables(model, project):
     )
 
 
-def create_allowed_time_slots_per_kind(model, project, activities_starts):
+def create_allowed_time_slots_per_kind(model, project, activities_starts, wave_dic = None):
+    if wave_dic is None:
+        wave_dic = {0:"dynamic"}
     activity_kinds = project.activity_kinds
     horizon = project.horizon
     origin_monday = project.setup["ORIGIN_MONDAY"]
@@ -286,13 +320,15 @@ def create_allowed_time_slots_per_kind(model, project, activities_starts):
             set(all_daily_slots) - set(activity_allowed_slots_ids)
         )
         for activity in akind.activities:
-            aid = activity.id
-            said = str(aid).zfill(4)
-            start = activities_starts[aid]
-            start_m96 = model.NewIntVar(-horizon, horizon, f"start_mod_{tspd}_{said}")
-            model.AddModuloEquality(start_m96, start - origin_monday_slot, 96)
-            for fslot in activity_forbidden_slots:
-                model.Add(start_m96 != fslot)
+            activity_wave_status = wave_dic[activity.course.wave]
+            if activity_wave_status == "dynamic" or activity_wave_status == "static":
+                aid = activity.id
+                said = str(aid).zfill(4)
+                start = activities_starts[aid]
+                start_m96 = model.NewIntVar(-horizon, horizon, f"start_mod_{tspd}_{said}")
+                model.AddModuloEquality(start_m96, start - origin_monday_slot, 96)
+                for fslot in activity_forbidden_slots:
+                    model.Add(start_m96 != fslot)
 
 
 def create_static_activities_overlap_constraints(

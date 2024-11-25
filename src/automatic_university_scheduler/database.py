@@ -529,6 +529,20 @@ class Activity(Base):
         }
         return pd.Series(out)
 
+    # @property
+    # def is_dynamic(self):
+    #     return self.course.is_dynamic
+
+    # @property
+    # def is_static(self):
+    #     return self.course.is_static
+    # @property
+    # def is_active(self):
+    #     return self.is_dynamic or self.is_static
+    
+    # @property
+    # def is_ignored(self):
+    #     return not self.is_active
 
 class Course(Base):
     __tablename__ = "course"
@@ -538,6 +552,7 @@ class Course(Base):
     label: Mapped[str] = mapped_column(String(30), unique=True)
     project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
     project: Mapped["Project"] = relationship(back_populates="courses")
+    wave = mapped_column(Integer, nullable=False, default=0)
     # manager_id: Mapped[int] = mapped_column(ForeignKey("teacher.id"))
     # manager: Mapped["Teacher"] = relationship(back_populates="managed_courses")
     # planner_id: Mapped[int] = mapped_column(ForeignKey("teacher.id"))
