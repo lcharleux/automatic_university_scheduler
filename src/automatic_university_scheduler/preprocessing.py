@@ -227,8 +227,13 @@ def create_teachers(session, project, teachers_data):
                     "project": project,
                     "kind": "teacher unavailable",
                     "allocated_teachers": [teachers[label]],
-                    "label": f"teacher {label} unavailable",
+                    # "label": f"teacher {label} unavailable",
                 }
+                if "label" in constraint.keys():
+                    static_activity_kwargs["label"] = constraint["label"]
+                else:
+                    static_activity_kwargs["label"] = f"teacher {label} unavailable"
+
                 static_activities_kwargs = process_constraint_static_activity(
                     constraint=constraint,
                     origin_datetime=origin_datetime,
