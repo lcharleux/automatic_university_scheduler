@@ -3,6 +3,12 @@ from automatic_university_scheduler.database import StaticActivity
 import itertools
 import numpy as np
 from scipy import ndimage
+from sqlalchemy.orm import Session
+from sqlalchemy import create_engine, select
+from automatic_university_scheduler.database import Project, Base
+from automatic_university_scheduler.utils import create_directory
+import pandas as pd
+import os
 
 
 def absolute_week_duration_deviation(
@@ -94,10 +100,14 @@ def absolute_week_duration_deviation(
 class SolutionPrinter(cp_model.CpSolverSolutionCallback):
     """Print intermediate solutions."""
 
-    def __init__(self, limit=3):
+    def __init__(self, engine, activities_starts, activities_alternative_ressources, dump_dir,  limit=3):
         cp_model.CpSolverSolutionCallback.__init__(self)
         self.__solution_count = 0
         self.__solution_limit = limit
+        self.engine = engine
+        self.activities_starts = activities_starts
+        self.activities_alternative_ressources = activities_alternative_ressources
+        self.dump_dir = dump_dir
 
     def on_solution_callback(self):
         """Called at each new solution."""
@@ -105,6 +115,8 @@ class SolutionPrinter(cp_model.CpSolverSolutionCallback):
             "Solution %i, time = %f s, objective = %i"
             % (self.__solution_count, self.WallTime(), self.ObjectiveValue())
         )
+        export_solution_to_database(self, self.engine, self.activities_starts, self.activities_alternative_ressources)
+        dump_solution(self.dump_dir, self.engine)
         self.__solution_count += 1
         if self.__solution_count >= self.__solution_limit:
             print("Stopped search after %i solutions" % self.__solution_limit)
@@ -224,10 +236,10 @@ def create_activities_variables(model, project):
             for rid in comb_rooms:
                 room_intervals[rid].append(alt_interval)
             activities_alternative_ressources[aid]["rooms"].append(
-                (alt_presence, [rooms_dic[i] for i in comb_rooms])
+                (alt_presence, [rooms_dic[i].label for i in comb_rooms])
             )
             activities_alternative_ressources[aid]["teachers"].append(
-                (alt_presence, [teachers_dic[i] for i in comb_teachers])
+                (alt_presence, [teachers_dic[i].label for i in comb_teachers])
             )
         model.AddExactlyOne(alt_presences)
 
@@ -390,3 +402,66 @@ def create_weekly_unavailability_constraints(project, model, atomic_students_int
                 model.AddNoOverlap([interval, sinterval])
 
     return weekly_unavailable_intervals
+
+
+def export_solution_to_database(solver, engine, activities_starts, activities_alternative_ressources):
+    session = Session(engine)
+    project = session.execute(select(Project)).scalars().first()
+    activities_dic = {a.id: a for a in project.activities}
+    rooms_labels_dic = {r.label: r for r in project.rooms}
+    teachers_labels_dic = {t.label: t for t in project.teachers}
+    for aid, start in activities_starts.items():
+        start_slot = solver.Value(start)
+        activity = activities_dic[aid]
+        activity.start = start_slot
+        activity_alternative_ressources = activities_alternative_ressources[aid]
+        activity.allocated_rooms = []
+        for existance, alt_rooms_labels in activity_alternative_ressources["rooms"]:
+            if solver.Value(existance) == 1:
+                for room_label in alt_rooms_labels:
+                    room = rooms_labels_dic[room_label]
+                    activity.allocated_rooms.append(room)
+
+        activity.allocated_teachers = []
+        for existance, alt_teachers_labels in activity_alternative_ressources["teachers"]:
+            if solver.Value(existance) == 1:
+                for teacher_label in alt_teachers_labels:
+                    teacher = teachers_labels_dic[teacher_label]
+                    activity.allocated_teachers.append(teacher)
+    session.commit()
+    session.close()
+
+def dump_solution(dump_dir, engine):    
+    # engine = create_engine(setup["engine"], echo=False)
+    # dump_dir = setup["dump_dir"]
+    create_directory(dump_dir)
+    Base.metadata.create_all(engine)
+    session = Session(engine)
+    project = session.execute(select(Project)).scalars().first()
+
+    # DATA GATHERING
+    existing_dumps = [f for f in os.listdir(dump_dir) if f.endswith(".csv")]
+    existing_dumps = [f for f in existing_dumps if f.startswith("project_dump_")]
+    if len(existing_dumps) == 0:
+        max_dump = 0
+    else:
+        max_dump = max([int(f.split("_")[-1].split(".")[0]) for f in existing_dumps]) +1
+
+    prefix = f"{dump_dir}/project_dump_{max_dump:04d}"
+
+    # CSV
+    out = {}
+    for activity in project.activities:
+        clabel = activity.course.label
+        alabel = activity.label
+        clabel = activity.course.label
+        adata = {"start": activity.start, "start_datetime": activity.start_datetime.to_str()}
+        adata["allocated_teachers_full"] = ";".join([t.full_name for t in activity.allocated_teachers])
+        adata["allocated_teachers"] = ";".join([t.label for t in activity.allocated_teachers])
+        adata["allocated_rooms"] = ";".join([r.label for r in activity.allocated_rooms])
+        out[clabel, alabel] = adata
+
+    out = pd.DataFrame(out).T
+    out.to_csv(prefix + ".csv")
+    print(f"Dumped to {prefix}.csv")
+    session.close()
