@@ -492,6 +492,9 @@ class Activity(Base):
             "teacher_count": self.teacher_count,
             "room_pool": ", ".join([r.label for r in self.room_pool]),
             "room_count": self.room_count,
+            "latest_start": self.latest_start,
+            "earliest_start": self.earliest_start,
+            "start": self.start_datetime,
         }
         return pd.Series(out)
 
