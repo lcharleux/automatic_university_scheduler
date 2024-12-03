@@ -9,6 +9,8 @@ from automatic_university_scheduler.database import Project, Base
 from automatic_university_scheduler.utils import create_directory
 import pandas as pd
 import os
+import time
+from datetime import datetime
 
 
 def absolute_week_duration_deviation(
@@ -100,6 +102,10 @@ def absolute_week_duration_deviation(
 class SolutionPrinter(cp_model.CpSolverSolutionCallback):
     """Print intermediate solutions."""
 
+    # def get_timestamp(self):
+    #     timestamp = datetime.now().strftime("%Y/%m/%d-%H:%M:%S")
+    #     return timestamp
+
     def __init__(self, engine, activities_starts, activities_alternative_ressources, dump_dir,  limit=3):
         cp_model.CpSolverSolutionCallback.__init__(self)
         self.__solution_count = 0
@@ -110,13 +116,16 @@ class SolutionPrinter(cp_model.CpSolverSolutionCallback):
         self.dump_dir = dump_dir
 
     def on_solution_callback(self):
-        """Called at each new solution."""
-        print(
-            "Solution %i, time = %f s, objective = %i"
-            % (self.__solution_count, self.WallTime(), self.ObjectiveValue())
-        )
+        """
+        Called at each new solution.
+        """
+        walltime = self.WallTime()
+        # Walltime as hours, seconds, minutes
+        walltime_str = time.strftime("%H:%M:%S", time.gmtime(walltime))
+        message = f"Solution:{self.__solution_count},\t time={walltime_str} s,\t objective={self.ObjectiveValue()}"
+        print(message)
         export_solution_to_database(self, self.engine, self.activities_starts, self.activities_alternative_ressources)
-        dump_solution(self.dump_dir, self.engine)
+        dump_solution(self.dump_dir, self.engine, walltime, self.ObjectiveValue())
         self.__solution_count += 1
         if self.__solution_count >= self.__solution_limit:
             print("Stopped search after %i solutions" % self.__solution_limit)
@@ -431,23 +440,32 @@ def export_solution_to_database(solver, engine, activities_starts, activities_al
     session.commit()
     session.close()
 
-def dump_solution(dump_dir, engine):    
-    # engine = create_engine(setup["engine"], echo=False)
-    # dump_dir = setup["dump_dir"]
-    create_directory(dump_dir)
-    Base.metadata.create_all(engine)
-    session = Session(engine)
-    project = session.execute(select(Project)).scalars().first()
-
+def dump_solution(dump_dir, engine, walltime, objective):    
     # DATA GATHERING
+    # DUMP DIRECTORY EXISTENCE
+    create_directory(dump_dir)
     existing_dumps = [f for f in os.listdir(dump_dir) if f.endswith(".csv")]
     existing_dumps = [f for f in existing_dumps if f.startswith("project_dump_")]
     if len(existing_dumps) == 0:
         max_dump = 0
     else:
-        max_dump = max([int(f.split("_")[-1].split(".")[0]) for f in existing_dumps]) +1
+        max_dump = max([int(f.split("_")[-1].split(".")[0]) for f in existing_dumps])
+    current_dump = max_dump + 1
+    timestamp = datetime.now().strftime("%Y/%m/%d-%H:%M:%S")
+    # CHECK IF FILE EXISTS
+    log_file = f"{dump_dir}/solution_log.csv"
+    if not os.path.exists(log_file):
+        with open(log_file, "w") as f:
+            f.write("timestamp,solution_number,walltime,objective\n")
 
-    prefix = f"{dump_dir}/project_dump_{max_dump:04d}"
+    with open(log_file, "a") as f:
+        f.write(f"{timestamp},{current_dump},{walltime},{objective}\n")
+    
+    create_directory(dump_dir)
+    Base.metadata.create_all(engine)
+    session = Session(engine)
+    project = session.execute(select(Project)).scalars().first()
+    prefix = f"{dump_dir}/project_dump_{current_dump:04d}"
 
     # CSV
     out = {}
@@ -463,5 +481,5 @@ def dump_solution(dump_dir, engine):
 
     out = pd.DataFrame(out).T
     out.to_csv(prefix + ".csv")
-    print(f"Dumped to {prefix}.csv")
+    print(f"\tDumped to {prefix}.csv")
     session.close()
