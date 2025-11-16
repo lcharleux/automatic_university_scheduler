@@ -24,6 +24,27 @@ import copy
 import math
 import datetime
 import pandas as pd
+import unicodedata
+
+def normalize_name(s: str) -> str:
+    """
+    Normalize a name-like string by stripping accents, replacing hyphens with spaces,
+    collapsing whitespace, and casefolding. Non-string inputs yield an empty string.
+    """
+    if not isinstance(s, str):
+        return ""
+
+    # Normalize accents
+    s = unicodedata.normalize("NFKD", s)
+    s = "".join(ch for ch in s if not unicodedata.combining(ch))
+
+    # Remove hyphens
+    s = s.replace("-", " ")
+
+    # Collapse multiple spaces
+    s = " ".join(s.split())
+
+    return s.casefold()
 
 
 def load_setup(data):
@@ -206,7 +227,7 @@ def create_teachers(session, project, teachers_data):
     teachers = {}
     teachers_unavailable_static_activities = {}
     for label, teacher_data in teachers_data.items():
-        full_name = teacher_data["full_name"]
+        full_name = normalize_name(teacher_data["full_name"])
         if "email" in teacher_data.keys():
             email = teacher_data["email"]
         else:
@@ -543,11 +564,16 @@ def extract_constraints_from_table(
             }
             return weekday_map[s]
 
-        def process_students_and_teachers(s):
+        def strip_string(s):
             if type(s) == float:
                 return ""
             else:
                 return s.strip()
+
+        def normalize_teachers_names(s):
+            s = strip_string(s)
+            s = normalize_name(s)
+            return s
 
         col_map = {
             "year": lambda df: df["Année"].values.astype(np.int32),
@@ -561,16 +587,16 @@ def extract_constraints_from_table(
                 lambda s: s.replace("Indéterminé", "")
             ),
             "students": lambda df: (df["Nom des groupes étudiants"]).map(
-                process_students_and_teachers
+                strip_string
             ),
             "teachers": lambda df: df["_Bloc Liste Enseignants (étape 4)"].map(
-                process_students_and_teachers
+                normalize_teachers_names
             ),
             "school": lambda df: df["Composantes groupes étudiants"].map(
                 lambda s: s.replace("Indéterminé", "")
             ),
             "description": lambda df: df["Libellé Activité"].map(
-                process_students_and_teachers
+                strip_string
             ),
         }
 

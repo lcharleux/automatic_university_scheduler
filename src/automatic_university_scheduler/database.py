@@ -376,6 +376,7 @@ class StaticActivity(Base):
         start_clock = f"{start.hour:02d}:{start.minute:02d}"
         end_clock = f"{end.hour:02d}:{end.minute:02d}"
         duration = self.duration_timedelta.to_str()
+        duration_min = self.duration_timedelta.total_seconds() / 60.
         if self.students is not None:
             students = self.students.label
         else:
@@ -391,6 +392,7 @@ class StaticActivity(Base):
             "start": start_clock,
             "end": end_clock,
             "duration": duration,
+            "duration_min": duration_min,
             "students": students,
             "allocated_teachers": ", ".join(
                 [t.full_name for t in self.allocated_teachers]
