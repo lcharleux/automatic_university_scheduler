@@ -53,11 +53,8 @@ else:
 for kwargs in static_activities_kwargs:
     create_instance(session, StaticActivity, **kwargs)
 
-# FRESHLY UPDATED STATIC ACTIVITIES
-static_activities = project.static_activities
-
-
 # INTERVALS CREATION
+soften_starts_after = True  # Toggle to False to keep strict offset constraints
 (
     activities_intervals,
     activities_starts,
@@ -67,7 +64,10 @@ static_activities = project.static_activities
     room_intervals,
     teacher_intervals,
     activities_alternative_ressources,
-) = create_activities_variables(model, project)
+    starts_after_penalties,
+) = create_activities_variables(
+    model, project, soften_starts_after=soften_starts_after
+)
 
 # ALLOWED TIME SLOTS PER KIND
 create_allowed_time_slots_per_kind(model, project, activities_starts)
@@ -78,17 +78,27 @@ create_allowed_time_slots_per_kind(model, project, activities_starts)
     teacher_static_intervals,
     room_static_intervals,
 ) = create_static_activities_overlap_constraints(
-    project, atomic_students_intervals, teacher_intervals, room_intervals, model
+    project,
+    atomic_students_intervals,
+    teacher_intervals,
+    room_intervals,
+    model,
+    frozen_activities=None,
 )
 
 # WEEKLY UNAVAILABILITY CONSTRAINTS
 create_weekly_unavailability_constraints(project, model, atomic_students_intervals)
 
 # OBJECTIVE FUNCTION
+considered_ids = set(activities_starts.keys())
 cost_value = absolute_week_duration_deviation(
-    project, model, activities_starts, activities_durations
+    project,
+    model,
+    activities_starts,
+    activities_durations,
+    considered_activity_ids=considered_ids,
 )
-model.Minimize(cost_value)
+model.Minimize(cost_value + sum(starts_after_penalties))
 
 
 # CHECK MODEL INTEGRITY

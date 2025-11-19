@@ -468,7 +468,10 @@ class Activity(Base):
 
     @property
     def end(self):
-        return self.start + self.duration
+        if self.start is not None and self.duration is not None:
+            return self.start + self.duration
+        else:
+            return None
 
     @property
     def start_datetime(self):
@@ -504,35 +507,57 @@ class Activity(Base):
     def planification_to_series(self):
         start = self.start_datetime
         end = self.end_datetime
-        start_isocalendar = start.isocalendar()
-        week = start_isocalendar.week
-        weekday = start_isocalendar.weekday
-        year = start_isocalendar.year
-        start_clock = f"{start.hour:02d}:{start.minute:02d}"
-        end_clock = f"{end.hour:02d}:{end.minute:02d}"
-        duration = self.duration_timedelta.to_str()
-        out = {
-            "id": self.id,
-            "label": self.label,
-            "kind": self.kind.label,
-            "start_slot": self.start,
-            "year": year,
-            "week": week,
-            "weekday": weekday,
-            "start": start_clock,
-            "end": end_clock,
-            "duration": duration,
-            "students": self.students.label,
-            "allocated_teachers": ", ".join(
-                [t.full_name for t in self.allocated_teachers]
-            ),
-            "allocated_rooms": ", ".join([r.label for r in self.allocated_rooms]),
-            "teacher_pool": ", ".join([t.full_name for t in self.teacher_pool]),
-            "teacher_count": self.teacher_count,
-            "room_pool": ", ".join([r.label for r in self.room_pool]),
-            "room_count": self.room_count,
-        }
-        return pd.Series(out)
+        if start is not None:
+            start_isocalendar = start.isocalendar()
+            week = start_isocalendar.week
+            weekday = start_isocalendar.weekday
+            year = start_isocalendar.year
+            start_clock = f"{start.hour:02d}:{start.minute:02d}"
+            end_clock = f"{end.hour:02d}:{end.minute:02d}"
+            duration = self.duration_timedelta.to_str()
+            out = {
+                "id": self.id,
+                "label": self.label,
+                "kind": self.kind.label,
+                "start_slot": self.start,
+                "year": year,
+                "week": week,
+                "weekday": weekday,
+                "start": start_clock,
+                "end": end_clock,
+                "duration": duration,
+                "students": self.students.label,
+                "allocated_teachers": ", ".join(
+                    [t.full_name for t in self.allocated_teachers]
+                ),
+                "allocated_rooms": ", ".join([r.label for r in self.allocated_rooms]),
+                "teacher_pool": ", ".join([t.full_name for t in self.teacher_pool]),
+                "teacher_count": self.teacher_count,
+                "room_pool": ", ".join([r.label for r in self.room_pool]),
+                "room_count": self.room_count,
+            }
+            return pd.Series(out)
+        else:
+            out = {
+                "id": self.id,
+                "label": self.label,
+                "kind": self.kind.label,
+                "start_slot": self.start,
+                "year": None,
+                "week": None,
+                "weekday": None,
+                "start": None,
+                "end": None,
+                "duration": None,
+                "students": self.students.label,
+                "allocated_teachers": None,
+                "allocated_rooms": None,
+                "teacher_pool": ", ".join([t.full_name for t in self.teacher_pool]),
+                "teacher_count": self.teacher_count,
+                "room_pool": ", ".join([r.label for r in self.room_pool]),
+                "room_count": self.room_count,
+            }
+            return pd.Series(out)
 
 
 class Course(Base):
@@ -543,6 +568,7 @@ class Course(Base):
     label: Mapped[str] = mapped_column(String(30), unique=True)
     project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
     project: Mapped["Project"] = relationship(back_populates="courses")
+    wave_group: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     # manager_id: Mapped[int] = mapped_column(ForeignKey("teacher.id"))
     # manager: Mapped["Teacher"] = relationship(back_populates="managed_courses")
     # planner_id: Mapped[int] = mapped_column(ForeignKey("teacher.id"))

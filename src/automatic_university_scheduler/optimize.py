@@ -14,7 +14,11 @@ from datetime import datetime
 
 
 def absolute_week_duration_deviation(
-    project, model, activities_starts, activities_durations
+    project,
+    model,
+    activities_starts,
+    activities_durations,
+    considered_activity_ids=None,
 ):
     """ """
     setup = project.setup
@@ -27,12 +31,22 @@ def absolute_week_duration_deviation(
     students_week_duration_dic = {
         gid: [[] for i in range(max_weeks)] for gid in students_groups_ids
     }
-    activities_students_dic = {}
-    for activity in project.activities:
-        aid = activity.id
-        activities_students_dic[aid] = [s.id for s in activity.students.students]
+    activities_by_id = {activity.id: activity for activity in project.activities}
+    if considered_activity_ids is None:
+        considered_activity_ids = set(activities_starts.keys())
+    else:
+        considered_activity_ids = set(considered_activity_ids) & set(
+            activities_starts.keys()
+        )
+    activities_students_dic = {
+        aid: [s.id for s in activities_by_id[aid].students.students]
+        for aid in considered_activity_ids
+    }
     total_activities_duration_per_group = {gid: 0 for gid in students_groups_ids}
     for aid, start in activities_starts.items():
+        if aid not in considered_activity_ids:
+            continue
+        activity = activities_by_id[aid]
         activity_week_number = model.NewIntVar(0, max_weeks, f"activity_{aid}_week")
         model.AddDivisionEquality(
             activity_week_number, start - origin_monday_slot, time_slots_per_week
@@ -144,7 +158,13 @@ def delete_imported_static_activities(session):
     session.commit()
 
 
-def create_activities_variables(model, project):
+def create_activities_variables(
+    model,
+    project,
+    soften_starts_after=True,
+    allowed_course_ids=None,
+    search_width=None,
+):
     activities_intervals = {}
     activities_starts = {}
     activities_ends = {}
@@ -159,9 +179,17 @@ def create_activities_variables(model, project):
     atomic_students_intervals = {s.id: [] for s in atomic_students}
     room_intervals = {r.id: [] for r in rooms}
     teacher_intervals = {t.id: [] for t in teachers}
-    activities = project.activities
+    if allowed_course_ids is not None:
+        allowed_course_ids = set(allowed_course_ids)
+    activities = [
+        activity
+        for activity in project.activities
+        if allowed_course_ids is None or activity.course_id in allowed_course_ids
+    ]
+    included_activity_ids = {activity.id for activity in activities}
     starts_after_constraints = project.starts_after_constraints
     horizon = project.horizon
+    starts_after_penalties = []
 
     for activity in activities:
         aid = activity.id
@@ -169,7 +197,18 @@ def create_activities_variables(model, project):
         start = model.NewIntVar(0, horizon, f"start_{said}")
         end = model.NewIntVar(0, horizon, f"end_{said}")
         if activity.start is not None:
-            model.AddHint(start, activity.start)
+            hinted_start = activity.start
+            model.AddHint(start, hinted_start)
+            if search_width is not None:
+                lower = max(0, hinted_start - search_width)
+                upper = min(horizon, hinted_start + search_width)
+                # if activity.earliest_start_slot is not None:
+                #     lower = max(lower, activity.earliest_start_slot)
+                # if activity.latest_start_slot is not None:
+                #     upper = min(upper, activity.latest_start_slot)
+                if lower <= upper:
+                    model.Add(start >= lower)
+                    model.Add(start <= upper)
         if activity.earliest_start_slot is not None:
             model.Add(start >= activity.earliest_start_slot)
         if activity.latest_start_slot is not None:
@@ -253,11 +292,22 @@ def create_activities_variables(model, project):
         model.AddExactlyOne(alt_presences)
 
     # START AFTER CONSTRAINTS
+    zero_int = model.NewConstant(0) if soften_starts_after else None
     for starts_after in starts_after_constraints:
-        from_activities = starts_after.from_activity_group.activities
+        from_activities = [
+            a
+            for a in starts_after.from_activity_group.activities
+            if a.id in included_activity_ids
+        ]
         from_activites_ids = [a.id for a in from_activities]
-        to_activities = starts_after.to_activity_group.activities
+        to_activities = [
+            a
+            for a in starts_after.to_activity_group.activities
+            if a.id in included_activity_ids
+        ]
         to_activities_ids = [a.id for a in to_activities]
+        if len(from_activites_ids) == 0 or len(to_activities_ids) == 0:
+            continue
         min_offset = starts_after.min_offset
         min_offset = int(min_offset / s_factor) if min_offset is not None else None
         max_offset = starts_after.max_offset
@@ -265,10 +315,36 @@ def create_activities_variables(model, project):
         for from_id, to_id in itertools.product(from_activites_ids, to_activities_ids):
             from_end = activities_ends[from_id]
             to_start = activities_starts[to_id]
-            if min_offset is not None:
-                model.Add(to_start >= from_end + min_offset)
-            if max_offset is not None:
-                model.Add(to_start <= from_end + max_offset)
+            if soften_starts_after:
+                # Order stays hard: each successor must at least start after the predecessor.
+                model.Add(to_start >= from_end)
+                said_from = str(from_id).zfill(4)
+                said_to = str(to_id).zfill(4)
+                if min_offset is not None and min_offset > 0:
+                    min_diff = model.NewIntVar(
+                        -horizon, horizon, f"starts_after_min_diff_{said_from}_{said_to}"
+                    )
+                    model.Add(min_diff == from_end + min_offset - to_start)
+                    min_violation = model.NewIntVar(
+                        0, horizon, f"starts_after_min_violation_{said_from}_{said_to}"
+                    )
+                    model.AddMaxEquality(min_violation, [min_diff, zero_int])
+                    starts_after_penalties.append(min_violation)
+                if max_offset is not None:
+                    max_diff = model.NewIntVar(
+                        -horizon, horizon, f"starts_after_max_diff_{said_from}_{said_to}"
+                    )
+                    model.Add(max_diff == to_start - from_end - max_offset)
+                    max_violation = model.NewIntVar(
+                        0, horizon, f"starts_after_max_violation_{said_from}_{said_to}"
+                    )
+                    model.AddMaxEquality(max_violation, [max_diff, zero_int])
+                    starts_after_penalties.append(max_violation)
+            else:
+                if min_offset is not None:
+                    model.Add(to_start >= from_end + min_offset)
+                if max_offset is not None:
+                    model.Add(to_start <= from_end + max_offset)
 
     # NO OVERLAP
     for teacher, intervals in teacher_intervals.items():
@@ -290,6 +366,7 @@ def create_activities_variables(model, project):
         room_intervals,
         teacher_intervals,
         activities_alternative_ressources,
+        starts_after_penalties,
     )
 
 
@@ -309,6 +386,8 @@ def create_allowed_time_slots_per_kind(model, project, activities_starts):
         for activity in akind.activities:
             aid = activity.id
             said = str(aid).zfill(4)
+            if aid not in activities_starts:
+                continue
             start = activities_starts[aid]
             start_m96 = model.NewIntVar(-horizon, horizon, f"start_mod_{tspd}_{said}")
             model.AddModuloEquality(start_m96, start - origin_monday_slot, 96)
@@ -317,7 +396,12 @@ def create_allowed_time_slots_per_kind(model, project, activities_starts):
 
 
 def create_static_activities_overlap_constraints(
-    project, atomic_students_intervals, teacher_intervals, room_intervals, model
+    project,
+    atomic_students_intervals,
+    teacher_intervals,
+    room_intervals,
+    model,
+    frozen_activities=None,
 ):
     static_activities = project.static_activities
     atomic_students = project.atomic_students
@@ -338,6 +422,26 @@ def create_static_activities_overlap_constraints(
         for teacher in static_activity.allocated_teachers:
             teacher_static_intervals[teacher.id].append(interval)
         for room in static_activity.allocated_rooms:
+            room_static_intervals[room.id].append(interval)
+
+    frozen_activities = frozen_activities or []
+    for frozen_activity in frozen_activities:
+        if frozen_activity.start is None:
+            continue
+        start = frozen_activity.start
+        duration = frozen_activity.duration
+        end = start + duration
+        aid = frozen_activity.id
+        start_var = model.NewIntVar(start, start, f"frozen_activity_{aid}_start")
+        end_var = model.NewIntVar(end, end, f"frozen_activity_{aid}_end")
+        interval = model.NewIntervalVar(
+            start_var, duration, end_var, f"frozen_activity_{aid}"
+        )
+        for atomic_student in frozen_activity.students.students:
+            atomic_students_static_intervals[atomic_student.id].append(interval)
+        for teacher in frozen_activity.allocated_teachers:
+            teacher_static_intervals[teacher.id].append(interval)
+        for room in frozen_activity.allocated_rooms:
             room_static_intervals[room.id].append(interval)
 
     for teacher, static_intervals in teacher_static_intervals.items():
@@ -472,8 +576,13 @@ def dump_solution(dump_dir, engine, walltime, objective):
     for activity in project.activities:
         clabel = activity.course.label
         alabel = activity.label
-        clabel = activity.course.label
-        adata = {"start": activity.start, "start_datetime": activity.start_datetime.to_str()}
+        start_slot = activity.start
+        if start_slot is None:
+            start_datetime_str = ""
+        else:
+            start_datetime = activity.start_datetime
+            start_datetime_str = start_datetime.to_str() if start_datetime else ""
+        adata = {"start": start_slot, "start_datetime": start_datetime_str}
         adata["allocated_teachers_full"] = ";".join([t.full_name for t in activity.allocated_teachers])
         adata["allocated_teachers"] = ";".join([t.label for t in activity.allocated_teachers])
         adata["allocated_rooms"] = ";".join([r.label for r in activity.allocated_rooms])
@@ -483,3 +592,4 @@ def dump_solution(dump_dir, engine, walltime, objective):
     out.to_csv(prefix + ".csv")
     print(f"\tDumped to {prefix}.csv")
     session.close()
+ 
