@@ -8,8 +8,13 @@ ENV CONDA_ENV_NAME scheduling
 # RUN apt-get install -y htop
 # RUN apt-get clean
 
-COPY install_miniforge.sh /tmp/install_miniforge.sh
-RUN chmod +x /tmp/install_miniforge.sh && /tmp/install_miniforge.sh
+
+# MINIFORGE INSTALL
+RUN cd /tmp && wget "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
+RUN echo $(ls /tmp/Mini*)
+RUN cd /tmp && bash Miniforge3-$(uname)-$(uname -m).sh -b -p /opt/conda
+RUN echo ". /opt/conda/etc/profile.d/conda.sh" >> /etc/skel/.bashrc
+
 COPY environment.yml /tmp/environment.yml
 RUN umask 0000 && ${MAMBA_BIN_PATH} create -y -n ${CONDA_ENV_NAME}
 RUN umask 0000 && ${MAMBA_BIN_PATH} env update --file /tmp/environment.yml
